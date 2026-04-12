@@ -1,0 +1,8 @@
+import enum
+
+class DocumentStatus(enum.Enum):
+
+    UPLOADED = "UPLOADED"
+    PROCESSING = "PROCESSING"
+    PROCESSED = "PROCESSED"
+    PROCESSING_FAILED = "PROCESSING FAILED"

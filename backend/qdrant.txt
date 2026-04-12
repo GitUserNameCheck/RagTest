@@ -1,0 +1,46 @@
+POST collections/DocumentEmbedding/points/scroll
+{
+  "filter": {
+    "must": [
+      {
+        "key": "document_id",
+        "match": {
+          "value": 14
+        }
+      }
+    ]
+  }
+}
+
+
+POST collections/DocumentEmbedding/points/count
+{
+  "filter": {
+    "must": [
+      {
+        "key": "document_id",
+        "match": {
+          "value": 417
+        }
+      }
+    ]
+  },
+  "exact": true
+}
+
+POST collections/DocumentEmbedding/points/search
+{
+  "vector" : [],
+  "with_payload": true,
+  "limit": 5,
+  "filter": {
+    "must": [
+      {
+        "key": "document_id",
+        "match": {
+          "value": 14
+        }
+      }
+    ]
+  }
+}
