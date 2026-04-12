@@ -5,9 +5,11 @@ from fastapi import APIRouter, HTTPException, status, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from uuid import uuid4
 
+from app.core.config import config
 from app.core.ml_models import ml_models
 from app.core.s3 import S3Client
 from app.core.qdrant import QdrantClient
+from app.core.openai import OpenAIClient
 from app.services.document_service import s3_get_documents, s3_upload_document, s3_delete_document
 from app.services.document_service import report_based_search as service_report_based_search
 from app.services.document_service import report_points_based_search as service_report_points_based_search
@@ -170,7 +172,7 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
 # [(label, text), (text)]
 #https://huggingface.co/Qwen/Qwen2.5-7B-Instruct
 @router.get("/report_points_based_search")
-async def report_points_based_search(prompt: str, search_text: str, report_id: int, qdrant_client: QdrantClient, label: str | None = None):
+async def report_points_based_search(prompt: str, search_text: str, report_id: int, qdrant_client: QdrantClient, open_ai_client: OpenAIClient, label: str | None = None):
 
     result = await service_report_points_based_search(search_text, report_id, label, qdrant_client)
 
@@ -185,30 +187,17 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
 
     print(prompt + "\n" + search_text + "\n" + documents_fragments)
 
-    text = ml_models["qwen_tokenizer"].apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
+    response = await open_ai_client.chat.completions.create(
+        model=config.open_ai_model_name,
+        messages=messages
     )
 
-    model_inputs = ml_models["qwen_tokenizer"]([text], return_tensors="pt").to(ml_models["qwen_model"].device)
+    result = response.choices[0].message.content
 
-    generated_ids = ml_models["qwen_model"].generate(
-        **model_inputs,
-        max_new_tokens=512
-    )
-
-    generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-    ]
-
-    response = ml_models["qwen_tokenizer"].batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-
-    return {"message": response}
+    return {"message": result}
 
 @router.get("/report_based_search")
-async def report_based_search(prompt: str, search_text: str, report_id: int, s3_client: S3Client, db: DbSession):
+async def report_based_search(prompt: str, search_text: str, report_id: int, s3_client: S3Client, open_ai_client: OpenAIClient, db: DbSession):
     report = await run_in_threadpool(lambda: db.query(Report).filter(Report.id == report_id).first())
     if report is None:
         raise HTTPException(
@@ -225,31 +214,18 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
 
     print(prompt + "\n" + search_text + "\n" + result)
 
-    text = ml_models["qwen_tokenizer"].apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
+    response = await open_ai_client.chat.completions.create(
+        model=config.open_ai_model_name,
+        messages=messages
     )
 
-    model_inputs = ml_models["qwen_tokenizer"]([text], return_tensors="pt").to(ml_models["qwen_model"].device)
+    result = response.choices[0].message.content
 
-    generated_ids = ml_models["qwen_model"].generate(
-        **model_inputs,
-        max_new_tokens=512
-    )
-
-    generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-    ]
-
-    response = ml_models["qwen_tokenizer"].batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-
-    return {"message": response}
+    return {"message": result}
 
 
 @router.get("/pure_llm_search")
-async def pure_llm_search(prompt: str, search_text: str):
+async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIClient,):
 
     messages = [
         {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
@@ -258,24 +234,11 @@ async def pure_llm_search(prompt: str, search_text: str):
 
     print(prompt + "\n" + search_text)
 
-    text = ml_models["qwen_tokenizer"].apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
+    response = await open_ai_client.chat.completions.create(
+        model=config.open_ai_model_name,
+        messages=messages
     )
 
-    model_inputs = ml_models["qwen_tokenizer"]([text], return_tensors="pt").to(ml_models["qwen_model"].device)
+    result = response.choices[0].message.content
 
-    generated_ids = ml_models["qwen_model"].generate(
-        **model_inputs,
-        max_new_tokens=512
-    )
-
-    generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
-    ]
-
-    response = ml_models["qwen_tokenizer"].batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-
-    return {"message": response}
+    return {"message": result}

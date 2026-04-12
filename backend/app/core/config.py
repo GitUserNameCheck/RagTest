@@ -15,8 +15,10 @@ class Config(BaseSettings):
     embedding_model_path: str = ""
     qdrant_url: str = ""
     qdrant_api_key: str = ""
-    embedding_text_size: int = 150
-    embedding_text_overlap: int = 50
-    qwen_path: str = ""
+    embedding_text_size: int = 500
+    embedding_text_overlap: int = 100
+    open_ai_api_key: str = None
+    open_ai_url: str = ""
+    open_ai_model_name: str = ""
 
 config = Config()
