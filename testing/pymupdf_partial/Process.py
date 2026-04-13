@@ -1,8 +1,8 @@
 import json
 import httpx
 
-INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/MergedHalfProcessing.jsonl"   # output from previous script
-OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/Processed.jsonl"
+INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/Process.jsonl"   # output from previous script
+OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ProcessedPyMuPDFPartial.jsonl"
 PROCESS_URL = "http://localhost:5001/api/document"
 PROCESS_TYPE = "pymupdf_partial_process"
 

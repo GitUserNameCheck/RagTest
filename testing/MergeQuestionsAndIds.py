@@ -1,8 +1,8 @@
 import json
 
 QUESTION_OBJECTS_FILE = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/FilteredQuestions.jsonl"
-DOCUMENT_OBJECTS_FILE = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/DocumentsHalfProcessingInfo.jsonl"
-OUTPUT_FILE = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/MergedHalfProcessing.jsonl"
+DOCUMENT_OBJECTS_FILE = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/UploadedDocuments.jsonl"
+OUTPUT_FILE = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/Process.jsonl"
 
 
 def load_jsonl(path):
@@ -31,9 +31,6 @@ with open(OUTPUT_FILE, "w", encoding="utf-8") as out_f:
 
             record = {
                 "id": document.get("id"),
-                "pager_process": document.get("pager_process"),
-                "pymupdf_full_process": document.get("pymupdf_full_process"),
-                "mineru_process_document": document.get("mineru_process_document"),
                 "task_tag": question.get("task_tag"),
                 "subTask": question.get("subTask"),
                 "doc_no": question.get("doc_no"),
