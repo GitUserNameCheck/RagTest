@@ -20,5 +20,6 @@ class Config(BaseSettings):
     open_ai_api_key: str = None
     open_ai_url: str = ""
     open_ai_model_name: str = ""
+    mineru_url: str = ""
 
 config = Config()

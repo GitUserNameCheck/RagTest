@@ -20,8 +20,9 @@ from app.core.config import config
 from app.core.qdrant import collection_name
 from app.models.document_models import DocumentStatus
 from app.services.report_service import delete_reports, s3_upload_report
-from app.services.report_service import process_pager_report, process_pymupdf_full_report
+from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
 from app.models.report_models import ReportJson, PyMuPdfReportJson, PyMuPdfPage
+from app.models.mineru_models import MinerUReport
 
 PRESIGNED_URLS_EXPIRATION_TIME_SECONDS = 3600 # 1 hour
 
@@ -92,7 +93,7 @@ async def pager_process_document(document: Document, qdrant_client: AsyncQdrantC
 
         logging.info(f"Sending documents {document.s3_filename}.{document.s3_mime_type} to pager")
         
-        async with httpx.AsyncClient(timeout=500.0) as client:
+        async with httpx.AsyncClient(timeout=None) as client:
             response = await client.post(config.pager_url + "/", data=data, files=files)
             response.raise_for_status()
 
@@ -236,6 +237,64 @@ async def pymupdf_partial_process_document(document: Document, start: int, end: 
         report_uuid = uuid4()
         
         report = await run_in_threadpool(s3_upload_report, json_bytes, "pymupdf_partial", str(report_uuid), document, s3_client, db)
+
+        document.status = DocumentStatus.PROCESSED.value
+        await run_in_threadpool(db.commit)
+
+        return report.id
+
+    except Exception as e:
+        await run_in_threadpool(db.rollback)
+        logging.exception(f"Error while processing document {document.s3_filename}.{document.s3_mime_type} from s3 \n {e}")
+        document.status = DocumentStatus.PROCESSING_FAILED.value
+        await run_in_threadpool(db.commit)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document processing failed"
+        )
+
+
+async def mineru_process_document(document: Document, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session):
+    logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
+    document.status = DocumentStatus.PROCESSING.value
+    await run_in_threadpool(db.commit)
+    try:
+        files = {
+            "files": (
+                f"{document.name}.{document.s3_mime_type}",
+                await run_in_threadpool(s3_client.get_object(Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")["Body"].read),
+                f"application/{document.s3_mime_type}"
+            )
+        }
+
+        data = {
+            "lang_list": ["cyrillic"],
+            "backend": "pipeline",
+            "formula_enable": False,
+            "return_md": False,
+            "return_content_list": True,
+        }
+
+        logging.info(f"Sending documents {document.s3_filename}.{document.s3_mime_type} to mineru")
+        
+        async with httpx.AsyncClient(timeout=None) as client:
+            response = await client.post(config.mineru_url + "/file_parse", data=data, files=files)
+            response.raise_for_status()
+        
+        data = response.json()
+        results = data["results"]
+        report_data = MinerUReport.model_validate(results[document.name])
+        
+        report_uuid = uuid4()
+
+        json_bytes = report_data.model_dump_json(indent=2).encode("utf-8")
+
+        report = await run_in_threadpool(s3_upload_report, json_bytes, "mineru", str(report_uuid), document, s3_client, db)
+
+        # report is not gonna be processed again if something fails, 
+        # but it is gonna be created and saved to s3
+        logging.info(f"Processing report {report.s3_filename}.json")
+        await process_mineru_report(report_data, document.id, report.id, qdrant_client)
 
         document.status = DocumentStatus.PROCESSED.value
         await run_in_threadpool(db.commit)

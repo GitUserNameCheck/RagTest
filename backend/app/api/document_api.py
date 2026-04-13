@@ -15,7 +15,8 @@ from app.services.document_service import report_based_search as service_report_
 from app.services.document_service import report_points_based_search as service_report_points_based_search
 from app.services.document_service import pager_process_document as service_pager_process_document
 from app.services.document_service import pymupdf_full_process_document as service_pymupdf_full_process_document 
-from app.services.document_service import pymupdf_partial_process_document as service_pymupdf_partial_process_document 
+from app.services.document_service import pymupdf_partial_process_document as service_pymupdf_partial_process_document
+from app.services.document_service import mineru_process_document as service_mineru_process_document
 from app.services.report_service import delete_reports
 from app.db.schema import DbSession, Document, Report
 from app.models.document_models import DocumentStatus
@@ -72,7 +73,7 @@ async def delete_document(id: int, qdrant_client: QdrantClient, s3_client: S3Cli
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document is being processed"
+            detail="Document is not found"
         )
     if document.status == DocumentStatus.PROCESSING.value:
         raise HTTPException(
@@ -90,7 +91,7 @@ async def delete_document_reports(id: int, qdrant_client: QdrantClient, s3_clien
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document is being processed"
+            detail="Document is not found"
         )
     if document.status == DocumentStatus.PROCESSING.value:
         raise HTTPException(
@@ -103,7 +104,7 @@ async def delete_document_reports(id: int, qdrant_client: QdrantClient, s3_clien
     document.status = DocumentStatus.UPLOADED.value
     await run_in_threadpool(db.commit)
 
-    return {"message": "document report successfuly deleted"}
+    return {"message": "document reports successfuly deleted"}
 
 @router.get("/get")
 def get_documents(s3_client: S3Client, db: DbSession, page: int = 1, page_size: int = 20):
@@ -118,7 +119,7 @@ async def pager_process_document(id: int,  qdrant_client: QdrantClient, s3_clien
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document is being processed"
+            detail="Document is not found"
         )
     if document.status == DocumentStatus.PROCESSING.value:
         raise HTTPException(
@@ -137,7 +138,7 @@ async def pymupdf_full_process_document(id: int,  qdrant_client: QdrantClient, s
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document is being processed"
+            detail="Document is not found"
         )
     if document.status == DocumentStatus.PROCESSING.value:
         raise HTTPException(
@@ -156,7 +157,7 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document is being processed"
+            detail="Document is not found"
         )
     if document.status == DocumentStatus.PROCESSING.value:
         raise HTTPException(
@@ -168,6 +169,24 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
 
     return {"message": "document successfuly processed", "id": report_id}
 
+
+@router.post("/mineru_process_document")
+async def mineru_process_document(id: int, qdrant_client: QdrantClient, s3_client: S3Client,  db: DbSession):
+    document = await run_in_threadpool(lambda: db.query(Document).filter(Document.id == id).first())
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document is not found"
+        )
+    if document.status == DocumentStatus.PROCESSING.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document is already being processed"
+        )
+
+    report_id = await service_mineru_process_document(document, qdrant_client, s3_client, db)
+
+    return {"message": "document successfuly processed", "id": report_id}
 
 # [(label, text), (text)]
 #https://huggingface.co/Qwen/Qwen2.5-7B-Instruct

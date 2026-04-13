@@ -14,6 +14,7 @@ from app.core.qdrant import QdrantClient, collection_name
 from app.core.config import config
 from qdrant_client.http import models
 from app.models.report_models import ReportJson, PyMuPdfReportJson
+from app.models.mineru_models import AuxiliaryBlock, MinerUReport
 
 def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document: Document, s3_client: S3Client, db: Session) -> Report:
     logging.info(f"Creating report for document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -135,6 +136,69 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
     embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
 
     points = await run_in_threadpool(get_points, texts, [None] * len(texts), embeddings, document_id, report_id)
+
+    await qdrant_client.upsert(
+        collection_name=collection_name,
+        points=points,
+        wait=True
+    )
+
+def mineru_get_texts_and_labels(report: MinerUReport):
+    blocks = report.content_list
+    texts = []
+    labels = []
+
+    for block in blocks:
+        def join_existing(*parts):
+            valid_parts = []
+            for p in parts:
+                if isinstance(p, list):
+                    joined_list = "\n".join(filter(None, p))
+                    if joined_list: valid_parts.append(joined_list)
+                elif p:
+                    valid_parts.append(str(p))
+            return "\n".join(valid_parts)
+
+        content = ""
+        
+        if block.type in ["text", "seal", "equation"] or isinstance(block, AuxiliaryBlock):
+            content = block.text
+            
+        elif block.type == "image":
+            content = join_existing(block.image_caption, block.image_footnote)
+            
+        elif block.type == "table":
+            content = join_existing(block.table_caption, block.table_body, block.table_footnote)
+            
+        elif block.type == "chart":
+            content = join_existing(block.chart_caption, block.content, block.chart_footnote)
+            
+        elif block.type == "code":
+            content = join_existing(block.code_caption, block.code_body, block.code_footnote)
+            
+        elif block.type == "list":
+            content = "\n".join(filter(None, block.list_items))
+
+        if content:
+            texts.append(content)
+            labels.append(block.type)
+
+    return texts, labels
+
+
+
+async def process_mineru_report(report: MinerUReport, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
+
+    texts, labels = await run_in_threadpool(mineru_get_texts_and_labels, report)
+
+    result = "".join([f"\n\n{labels[i]}\nSTART\n{el}\nEND\n\n" for i, el in enumerate(texts)])
+    print(result)
+
+    print(len(texts), len(labels))
+
+    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
+
+    points = await run_in_threadpool(get_points, texts, labels, embeddings, document_id, report_id)
 
     await qdrant_client.upsert(
         collection_name=collection_name,
