@@ -1,0 +1,6 @@
+mineru-models-download --model_type pipeline
+
+mineru-api --host localhost --port 8500
+
+C:\Users\user\mineru.json
+C:\Users\user\.cache\huggingface\hub\models--opendatalab--PDF-Extract-Kit-1.0\snapshots\d1336ee3c2975a8b26c4b09ff39dc6b593d34141
