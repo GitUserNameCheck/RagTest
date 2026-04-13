@@ -191,10 +191,10 @@ async def process_mineru_report(report: MinerUReport, document_id: int, report_i
 
     texts, labels = await run_in_threadpool(mineru_get_texts_and_labels, report)
 
-    result = "".join([f"\n\n{labels[i]}\nSTART\n{el}\nEND\n\n" for i, el in enumerate(texts)])
-    print(result)
+    # result = "".join([f"\n\n{labels[i]}\nSTART\n{el}\nEND\n\n" for i, el in enumerate(texts)])
+    # print(result)
 
-    print(len(texts), len(labels))
+    # print(len(texts), len(labels))
 
     embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
 

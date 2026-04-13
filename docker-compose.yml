@@ -22,6 +22,7 @@ services:
     environment:
       QDRANT__SERVICE__API_KEY: "your_secret_api_key_here"
       QDRANT__TELEMETRY_DISABLED: true
+      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 256
       # QDRANT__SERVICE__ENABLE_TLS: "1"
       # QDRANT__TLS__CERT: "/path/to/your/cert.pem"
       # QDRANT__TLS__KEY: "/path/to/your/key.pem"

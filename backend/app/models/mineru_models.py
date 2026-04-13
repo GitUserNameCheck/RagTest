@@ -27,7 +27,7 @@ class TableBlock(BaseBlock):
     img_path: str
     table_caption: List[str]
     table_footnote: List[str]
-    table_body: str  # HTML
+    table_body: Optional[str] = None  # HTML
 
 class ChartBlock(BaseBlock):
     type: Literal["chart"]

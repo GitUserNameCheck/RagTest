@@ -4,3 +4,5 @@ postgres/
 PageR/
 .vscode/
 output/
+testing/*.jsonl
+testing/*.json
