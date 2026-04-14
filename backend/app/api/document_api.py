@@ -170,7 +170,7 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
     return {"message": "document successfuly processed", "id": report_id}
 
 
-@router.post("/mineru_process_document")
+@router.post("/mineru_process")
 async def mineru_process_document(id: int, qdrant_client: QdrantClient, s3_client: S3Client,  db: DbSession):
     document = await run_in_threadpool(lambda: db.query(Document).filter(Document.id == id).first())
     if document is None:
