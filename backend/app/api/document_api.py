@@ -201,7 +201,7 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
 
     messages = [
         {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt + "\n" + search_text + "\n" + documents_fragments}
+        {"role": "user", "content": prompt + "\n" + search_text + "\n\n" + documents_fragments}
     ]
 
     print(prompt + "\n" + search_text + "\n" + documents_fragments)
@@ -229,7 +229,7 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
 
     messages = [
         {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt + "\n" + search_text + "\n" + result}
+        {"role": "user", "content": prompt + "\n" + search_text + "\n\n" + result}
     ]
 
     print(prompt + "\n" + search_text + "\n" + result)

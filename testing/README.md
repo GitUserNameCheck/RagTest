@@ -40,3 +40,9 @@ This repository contains files to test using [LongDocUrl](https://github.com/den
 1. [Merge.py](pager/Merge.py)
 1. [Question.py](pager/Question.py)
 1. [ExtractAnswers.py](ExtractAnswers.py)
+
+## Pure LLM process
+
+1. [Select.py](Select.py)
+1. [Question.py](pure_llm/Question.py)
+1. [ExtractAnswers.py](ExtractAnswers.py)
