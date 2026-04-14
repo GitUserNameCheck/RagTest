@@ -2,10 +2,10 @@ import json
 import os
 import httpx
 
-INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/Process.jsonl"   # output from previous script
-OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ProcessedPyMuPDFPartial.jsonl"
+INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/UploadedDocuments.jsonl"   # output from previous script
+OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ProcessedPyMuPDFFull.jsonl"
 PROCESS_URL = "http://localhost:5001/api/document"
-PROCESS_TYPE = "pymupdf_partial_process"
+PROCESS_TYPE = "pymupdf_full_process"
 
 
 
@@ -18,8 +18,8 @@ def get_processed_ids():
                 if line:
                     try:
                         record = json.loads(line)
-                        if "question_id" in record:
-                            processed.add(record["question_id"])
+                        if "id" in record:
+                            processed.add(record["id"])
                     except json.JSONDecodeError:
                         continue
     return processed
@@ -43,23 +43,21 @@ def main():
                     print(f"Skipping line {line_no}: invalid JSON ({e})")
                     continue
 
-                question_id = record.get("question_id")
+                doc_id = record.get("id")
 
-                if question_id in processed_ids:
-                    print(f"Пропуск question={question_id} (уже в файле вывода)")
+                if doc_id in processed_ids:
+                    print(f"Пропуск doc_id={doc_id} (уже в файле вывода)")
                     continue
 
                 doc_id = record.get("id")
-                doc_name = record.get("doc_no")
-                doc_start_end = record.get("start_end_idx")
-                start, end = doc_start_end[0], doc_start_end[1]
+                doc_name = record.get("name")
 
                 print(f"Processing document id={doc_id} ({doc_name})")
 
 
                 response = client.post(
                     f"{PROCESS_URL}/{PROCESS_TYPE}",
-                    params={"id": doc_id, "start": start, "end": end}
+                    params={"id": doc_id}
                 )
 
                 if response.is_success:

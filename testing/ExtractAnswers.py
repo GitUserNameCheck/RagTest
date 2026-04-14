@@ -3,9 +3,11 @@ from openai import OpenAI
 import os
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialAnswers.jsonl"
-OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialExtractedAnswers.jsonl"
-OPENAI_API_KEY = None
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialExtractedAnswers.jsonl"
+INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullAnswers.jsonl"
+OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullExtractedAnswers.jsonl"
+OPENAI_API_KEY = ""
 OPENAI_URL = "http://localhost:12434/v1"
 OPENAI_MODEL_NAME = "docker.io/ai/qwen2.5:latest"
 ANSWER_EXTRACTION_PROMPT = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/AnswerExtractionPrompt.md"

@@ -2,9 +2,9 @@ import json
 import os
 import httpx
 
-SYSTEM_SEARCH_DOCUMENTS_URL = "http://localhost:5001/api/document/report_based_search"
-QUESTION_JSONL_PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ProcessedPyMuPDFPartial.jsonl"
-OUTPUT_JSONL_PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialAnswers.jsonl"
+SYSTEM_SEARCH_DOCUMENTS_URL = "http://localhost:5001/api/document/report_points_based_search"
+QUESTION_JSONL_PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/MergedProcessedPyMuPDFFull.jsonl"
+OUTPUT_JSONL_PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullAnswers.jsonl"
 
 SYSTEM_PROMPT = (
     "You are an expert in document question answering. Answer the question strictly based on the given document. \n Following is our question: \n"
@@ -52,7 +52,7 @@ def main():
                 params={
                     "prompt": SYSTEM_PROMPT,
                     "search_text": question.get("question"),
-                    "report_id": question.get("pymupdf_partial_process")
+                    "report_id": question.get("pymupdf_full_process")
                 }
             )
             response.raise_for_status()
@@ -68,7 +68,7 @@ def main():
             "subTask": question.get("subTask"),
             "doc_no": question.get("doc_no"),
             "id": question.get("id"),
-            "pymupdf_full_process": question.get("pymupdf_partial_process"),
+            "pymupdf_full_process": question.get("pymupdf_full_process"),
             "path": question.get("path"),
             "total_pages": question.get("total_pages"),
             "start_end_idx": question.get("start_end_idx"),
