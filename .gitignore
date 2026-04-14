@@ -1,7 +1,7 @@
 minio/
 pgadmin/
 postgres/
-PageR/
+/PageR/
 .vscode/
 output/
 testing/**/*.json

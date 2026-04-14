@@ -30,3 +30,13 @@ This repository contains files to test using [LongDocUrl](https://github.com/den
 1. [Merge.py](mineru/Merge.py)
 1. [Question.py](mineru/Question.py)
 1. [ExtractAnswers.py](ExtractAnswers.py)
+
+## Pager process
+
+1. [Select.py](Select.py)
+1. [UploadPDF.py](UploadPDF.py)
+1. [MergeQuestionsAndIds.py](MergeQuestionsAndIds.py)
+1. [Process.py](pager/Process.py)
+1. [Merge.py](pager/Merge.py)
+1. [Question.py](pager/Question.py)
+1. [ExtractAnswers.py](ExtractAnswers.py)
