@@ -68,7 +68,7 @@ def main():
             "subTask": question.get("subTask"),
             "doc_no": question.get("doc_no"),
             "id": question.get("id"),
-            "pymupdf_full_process": question.get("pymupdf_partial_process"),
+            "pymupdf_partial_process": question.get("pymupdf_partial_process"),
             "path": question.get("path"),
             "total_pages": question.get("total_pages"),
             "start_end_idx": question.get("start_end_idx"),

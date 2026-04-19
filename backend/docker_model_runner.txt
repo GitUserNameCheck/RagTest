@@ -1,0 +1,2 @@
+docker model package --from docker.io/ai/qwen3.5:9B-UD-Q4_K_XL --context-size 256000 qwen3.5:256k
+docker model inspect ai/qwen3.5:256k

@@ -1,6 +1,5 @@
 import logging
 import os
-from openai import OpenAI
 from fastapi import APIRouter, HTTPException, status, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from uuid import uuid4
@@ -209,7 +208,8 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
         messages=messages,
-        temperature=0
+        temperature=0,
+        max_tokens=1024
     )
 
     result = response.choices[0].message.content
@@ -237,7 +237,8 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
         messages=messages,
-        temperature=0
+        temperature=0,
+        max_tokens=1024
     )
 
     result = response.choices[0].message.content
@@ -258,7 +259,8 @@ async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIC
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
         messages=messages,
-        temperature=0
+        temperature=0,
+        max_tokens=1024
     )
 
     result = response.choices[0].message.content

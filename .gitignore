@@ -6,3 +6,5 @@ postgres/
 output/
 testing/**/*.json
 testing/**/*.jsonl
+evaluation/**/*.json
+evaluation/**/*.jsonl

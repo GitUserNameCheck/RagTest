@@ -9,12 +9,10 @@ The primary goal is to analyze how different document parsing and retrieval meth
 - Questioning without any retrieved data.
 - Questioning using cut-off paradigm from LongDocURL.
 - Questioning using [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) based RAG algorithm.
-- Questioning using [PageR](https://github.com/YRL-AIDA/PageR) based RAG algorithm.
 - Questioning using [MinerU](https://github.com/opendatalab/mineru) based RAG algorithm.
 
 ## Dependencies & Versions
 
-- PageR: Used commit fc509ea8fdd1e639e30daddd19f689491d694881 (main branch).
 - MinerU: v3.0.4.
 - Tesseract OCR: v5.5.0.20241111 (System dependency).
 - Python: 3.13.7.
