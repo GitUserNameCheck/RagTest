@@ -11,8 +11,8 @@ def plot_combined_metrics(file_path):
 
     # Переводчики
     trans = {
-        "Layout": "Разметка", "Text": "Текст",
-        "Understanding": "Понимание", "Locating": "Обнаружение"
+        "Layout": "Layout", "Text": "Text",
+        "Understanding": "Understanding", "Locating": "Locating"
     }
 
     # 1. Чтение файла и сбор статистики
@@ -46,21 +46,27 @@ def plot_combined_metrics(file_path):
     def draw_donut(ax, metrics, title):
         labels, counts, accuracies = [], [], []
         for key, data in metrics.items():
-            labels.append(f"{key}\n({data['count']} зап.)")
+            labels.append(f"{key}\n({data['count']})")
             counts.append(data["count"])
             accuracies.append((data["sum"] / data["count"]) * 100)
         
         wedges, texts, autotexts = ax.pie(
             counts, labels=labels, 
             autopct=lambda pct: f"{accuracies[counts.index(min(counts, key=lambda x: abs(x/sum(counts)*100 - pct)))]:.2f}%",
-            startangle=140, pctdistance=0.75,
-            wedgeprops=dict(width=0.4, edgecolor='w')
+            startangle=140, pctdistance=0.72,
+            wedgeprops=dict(width=0.45, edgecolor='w'),
+            textprops=dict(fontsize=12)
         )
+
+        for t in autotexts:
+            t.set_fontsize(11)
+            t.set_fontweight("bold")
+            t.set_color("white")
         
         # Общая информация в центре каждого круга
-        ax.text(0, 0, f"Всего: {total_count}\nИтог: {overall_accuracy:.2f}%", 
-                ha='center', va='center', fontsize=11, fontweight='bold')
-        ax.set_title(title, fontsize=14, pad=20)
+        ax.text(0, 0, f"Total: {total_count}\nAcc: {overall_accuracy:.2f}%", 
+                ha='center', va='center', fontsize=18, fontweight='bold')
+        ax.set_title(title, fontsize=14)
 
     # Рисуем оба графика
     draw_donut(ax1, source_metrics, "Точность по источникам (Sources)")
@@ -69,10 +75,14 @@ def plot_combined_metrics(file_path):
     plt.tight_layout()
     plt.show()
 
-PATH = "C:/Users/howto/Downloads/test/ScoredMineru.jsonl"
+# PATH = "C:/Users/howto/Downloads/miner/ScoredMineru.jsonl"
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFFull.jsonl"
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFPartial.jsonl"
 
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
+PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
 
 # Замените на имя вашего файла
 plot_combined_metrics(PATH)

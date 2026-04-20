@@ -209,7 +209,7 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
         model=config.open_ai_model_name,
         messages=messages,
         temperature=0,
-        max_tokens=1024
+        max_tokens=4096
     )
 
     result = response.choices[0].message.content
@@ -238,7 +238,7 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
         model=config.open_ai_model_name,
         messages=messages,
         temperature=0,
-        max_tokens=1024
+        max_tokens=4096
     )
 
     result = response.choices[0].message.content
@@ -260,7 +260,7 @@ async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIC
         model=config.open_ai_model_name,
         messages=messages,
         temperature=0,
-        max_tokens=1024
+        max_tokens=4096
     )
 
     result = response.choices[0].message.content

@@ -78,7 +78,7 @@ def make_two_pie_charts(series1, title1, series2, title2):
 
         ax.text(
             0, 0,
-            f"Кол-во\n{total}",
+            f"Total\n{total}",
             ha="center",
             va="center",
             fontsize=16,
@@ -107,19 +107,28 @@ def classify_sources(src):
     has_text = "text" in vals
     has_layout = "layout" in vals
 
+    # if has_text and has_layout:
+    #     return "Разметка + Текст"
+    # elif has_text:
+    #     return "Текст"
+    # elif has_layout:
+    #     return "Разметка"
+    # else:
+    #     return "Other"
+    
     if has_text and has_layout:
-        return "Разметка + Текст"
+        return "Layout + Text"
     elif has_text:
-        return "Текст"
+        return "Text"
     elif has_layout:
-        return "Разметка"
+        return "Lauyout"
     else:
         return "Other"
 
 
 def main():
     
-    jsonl_path = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/evaluation/Questions.jsonl"
+    jsonl_path = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/evaluation/FilteredQuestions.jsonl"
 
     records = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
@@ -169,10 +178,10 @@ def main():
 
     # make_pie_chart(category_counts, "Evidence Source Categories")
 
-    task_tag_counts = task_tag_counts.rename({
-        "Understanding": "Понимание",
-        "Locating": "Обнаружение"
-    })
+    # task_tag_counts = task_tag_counts.rename({
+    #     "Understanding": "Понимание",
+    #     "Locating": "Обнаружение"
+    # })
 
 
     make_two_pie_charts(task_tag_counts, "Task Tag Distribution", category_counts, "Evidence Source Categories")

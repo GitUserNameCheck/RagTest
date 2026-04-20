@@ -14,8 +14,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMAnswers.jsonl"
 OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
 OPENAI_API_KEY = ""
-OPENAI_URL = "http://localhost:12434/v1"
-OPENAI_MODEL_NAME = "docker.io/ai/qwen2.5:latest"
+OPENAI_URL = "http://localhost:1234/v1"
+OPENAI_MODEL_NAME = "qwen/qwen2.5-vl-7b"
 ANSWER_EXTRACTION_PROMPT = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/AnswerExtractionPrompt.md"
 
 SYSTEM_PROMPT = (
@@ -74,7 +74,8 @@ def main():
         response = client.chat.completions.create(
             model=OPENAI_MODEL_NAME,
             messages=messages,
-            temperature=0
+            temperature=0,
+            max_tokens=4096
         )
 
         result = response.choices[0].message.content

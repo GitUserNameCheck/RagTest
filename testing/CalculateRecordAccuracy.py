@@ -14,7 +14,15 @@ from math import isclose
 # INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
 # OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
 
-INPUT_JSONL = "C:/Users/howto/Downloads/test/ExtractedAnswers/ClearedPyMuPDFFullExtractedAnswers.jsonl"
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/MineruExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
+INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialExtractedAnswers.jsonl"
+OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
+
 
 def load_jsonl(path):
     items = []
@@ -263,9 +271,9 @@ def main():
     print("score is " + str(generalized_score))
 
 
-    # with open(OUTPUT_JSONL, "w", encoding="utf-8") as out_f:
-    #     for row in rows:
-    #         out_f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    with open(OUTPUT_JSONL, "w", encoding="utf-8") as out_f:
+        for row in rows:
+            out_f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 if __name__ == "__main__":
     main()

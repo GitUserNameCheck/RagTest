@@ -57,8 +57,13 @@ def calculate_jsonl_metrics(file_path):
         print(f"{task}: {accuracy:.4f} (Кол-во: {data['count']})")
 
 # Пути к файлам
-PATH = "C:/Users/howto/Downloads/test/ScoredMineru.jsonl"
+# PATH = "C:/Users/howto/Downloads/test/ScoredMineru.jsonl"
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFFull.jsonl"
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFPartial.jsonl"
+
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
+PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
 
 calculate_jsonl_metrics(PATH)
