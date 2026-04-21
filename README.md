@@ -28,7 +28,7 @@ Dataset was created by selecting all Understanding and Locating questions with e
 
 ![MinerU](evaluation/images/MinerU.jpg)
 
-- Questioning using [PageR](pager) based RAG algorithm.
+- Questioning using [PageR](Pager) based RAG algorithm.
 
 ![PageR](evaluation/images/PageR.jpg)
 
