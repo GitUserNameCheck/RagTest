@@ -58,10 +58,10 @@ def main():
             response.raise_for_status()
         except Exception as e:
             print(f"Error for QID {question_id}: {e}")
-            continue
+            # continue
 
         data = response.json()
-        predicted_answer = data.get("message", None)
+        predicted_answer = data.get("message", "None")
 
         out = {
             "task_tag": question.get("task_tag"),

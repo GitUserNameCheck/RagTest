@@ -98,11 +98,12 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
 
     points = await run_in_threadpool(get_points, texts, labels, embeddings, document_id, report_id)
 
-    await qdrant_client.upsert(
-        collection_name=collection_name,
-        points=points,
-        wait=True
-    )
+    if len(points) > 0:
+        await qdrant_client.upsert(
+            collection_name=collection_name,
+            points=points,
+            wait=True
+        )
 
 def chunk_document(report: PyMuPdfReportJson) -> List[str]:
     chunks = []

@@ -44,7 +44,7 @@ def make_pie_chart(series, title):
 
 def make_two_pie_charts(series1, title1, series2, title2):
     
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8))
 
     charts = [
         (axes[0], series1, title1),

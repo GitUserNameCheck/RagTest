@@ -3,26 +3,17 @@ import re
 from math import isclose
 
 
+
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/MineruExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
+# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullExtractedAnswers.jsonl"
+# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
 # INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialExtractedAnswers.jsonl"
 # OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/MineruExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pager/PagerExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pager/ScoredPager"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
-
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/MineruExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/PureLLMExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
-# INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/PyMuPDFFullExtractedAnswers.jsonl"
-# OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
-INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/PyMuPDFPartialExtractedAnswers.jsonl"
-OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
-
+INPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pager/PagerExtractedAnswers.jsonl"
+OUTPUT_JSONL = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pager/ScoredPager.jsonl"
 
 def load_jsonl(path):
     items = []
