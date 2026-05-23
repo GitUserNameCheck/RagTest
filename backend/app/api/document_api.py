@@ -120,11 +120,11 @@ async def pager_process_document(id: int,  qdrant_client: QdrantClient, s3_clien
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document is not found"
         )
-    if document.status == DocumentStatus.PROCESSING.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Document is already being processed"
-        )
+    # if document.status == DocumentStatus.PROCESSING.value:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Document is already being processed"
+    #     )
 
     report_id = await service_pager_process_document(document, qdrant_client, s3_client, db)
 
@@ -139,11 +139,11 @@ async def pymupdf_full_process_document(id: int,  qdrant_client: QdrantClient, s
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document is not found"
         )
-    if document.status == DocumentStatus.PROCESSING.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Document is already being processed"
-        )
+    # if document.status == DocumentStatus.PROCESSING.value:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Document is already being processed"
+    #     )
 
     report_id = await service_pymupdf_full_process_document(document, qdrant_client, s3_client, db)
 
@@ -158,11 +158,11 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document is not found"
         )
-    if document.status == DocumentStatus.PROCESSING.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Document is already being processed"
-        )
+    # if document.status == DocumentStatus.PROCESSING.value:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Document is already being processed"
+    #     )
 
     report_id = await service_pymupdf_partial_process_document(document, start, end, qdrant_client, s3_client, db)
 
@@ -177,11 +177,11 @@ async def mineru_process_document(id: int, qdrant_client: QdrantClient, s3_clien
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document is not found"
         )
-    if document.status == DocumentStatus.PROCESSING.value:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Document is already being processed"
-        )
+    # if document.status == DocumentStatus.PROCESSING.value:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Document is already being processed"
+    #     )
 
     report_id = await service_mineru_process_document(document, qdrant_client, s3_client, db)
 
@@ -194,16 +194,30 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
 
     result = await service_report_points_based_search(search_text, report_id, label, qdrant_client)
 
-    documents_fragments = ""
-    for scored_point in result.points:
-        documents_fragments = documents_fragments + scored_point.payload["text"] + "\n"
-
-    messages = [
-        {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt + "\n" + search_text + "\n\n" + documents_fragments}
+    content = [ 
+        {"type": "text", "text": search_text},
     ]
 
-    print(prompt + "\n" + search_text + "\n" + documents_fragments)
+    for scored_point in result.points:
+        data = scored_point.payload.get("data", "")
+        if isinstance(data, dict):
+            content.append({"type": "text", "text": data.get("text", "")})
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    # Critical: Format as data:image/jpeg;base64,<data>
+                    "url": data.get("image", "")
+                },
+            },)
+        else:
+            content.append({"type": "text", "text": data})
+
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": content}
+    ]
+
+    print(content)
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,

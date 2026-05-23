@@ -12,14 +12,15 @@ class Config(BaseSettings):
     s3_password: str = ""
     s3_url: str = ""
     pager_url: str = ""
-    embedding_model_path: str = ""
     qdrant_url: str = ""
     qdrant_api_key: str = ""
-    embedding_text_size: int = 500
-    embedding_text_overlap: int = 100
     open_ai_api_key: str = None
     open_ai_url: str = ""
     open_ai_model_name: str = ""
     mineru_url: str = ""
+    embedding_model_path: str = ""
+    embedding_text_size: int = 500
+    embedding_text_overlap: int = 100
+    reranker_model_path: str = ""
 
 config = Config()

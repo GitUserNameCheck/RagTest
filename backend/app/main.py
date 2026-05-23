@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from magika import Magika
 from qdrant_client import AsyncQdrantClient
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from sentence_transformers import CrossEncoder
 from sentence_transformers import SentenceTransformer
 from torch import cuda
 
@@ -39,10 +39,11 @@ async def lifespan(app: FastAPI):
 
     ml_models["magika"] = Magika()
     ml_models["embedding_model"] = SentenceTransformer(config.embedding_model_path)
-
+    ml_models["reranker_model"] = CrossEncoder(config.reranker_model_path)
 
     if cuda.is_available():
         ml_models["embedding_model"] = ml_models["embedding_model"].to('cuda')
+        ml_models["reranker_model"] = ml_models["reranker_model"].to("cuda")
 
     yield
     ml_models.clear()

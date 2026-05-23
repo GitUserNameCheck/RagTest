@@ -1,6 +1,7 @@
 from io import BytesIO
 import logging
-from typing import List
+import pymupdf
+from typing import Any, List
 from fastapi.concurrency import run_in_threadpool
 from uuid import uuid4
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from app.core.config import config
 from qdrant_client.http import models
 from app.models.report_models import ReportJson, PyMuPdfReportJson
 from app.models.mineru_models import AuxiliaryBlock, MinerUReport
+from app.utility.report_utility import generate_distinct_colors
 
 def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document: Document, s3_client: S3Client, db: Session) -> Report:
     logging.info(f"Creating report for document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -24,8 +26,11 @@ def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document
     db.commit()
     return report
 
+def s3_upload_report_outline(content: bytes, report_name: str, document_type: str, s3_client: S3Client, db: Session) -> None:
+    logging.info(f"Uploading report outline for report {report_name} to s3")
+    s3_client.upload_fileobj(Fileobj=BytesIO(content), Bucket=AWS_BUCKET, Key=f"report_outlines/{report_name}.{document_type}")
 
-async def delete_reports(document: Document, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session):
+async def delete_reports(document: Document, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session) -> None:
     await qdrant_delete_reports_points(document, qdrant_client)
 
     logging.info(f"Deleting reports for {document.id}")
@@ -59,44 +64,58 @@ async def qdrant_delete_reports_points(document: Document, qdrant_client: AsyncQ
     )
 
 def get_texts_and_labels(report: ReportJson) -> tuple[list[str], list[str]]:
-    texts = []
+    data = []
     labels = []
+    seen = set()
     
     for page in report.pages:
         for region in page.regions:
-            texts.append(region.text.replace("-\n", "").replace("\n", " ").lower())
-            labels.append(region.label)
+            if region.label == "figure":
+                current_data = {
+                    "text": region.text,
+                    "image": f"data:image/png;base64,{region.base64}"
+                }
+                seen_key = (current_data["text"], current_data["image"])
+            else:
+                current_data = region.text
+                seen_key = region.text
 
-    return texts, labels
+            if seen_key not in seen:
+                seen.add(seen_key)
+                data.append(current_data)
+                labels.append(region.label)
+
+    return data, labels
 
 
-def get_points(texts: list[str], labels: list[str], embeddings: Tensor, document_id: int, report_id: int) -> list[models.PointStruct]:
+def get_points(data: list[Any], labels: list[str], embeddings: Tensor, document_id: int, report_id: int) -> list[models.PointStruct]:
     points = []
-    for text, label, embedding in zip(texts, labels, embeddings):
-        if len(text) > 0:
-            points.append(
-                models.PointStruct(
-                    id = uuid4(),
-                    vector = embedding,
-                    payload = {
-                        "document_id": document_id,
-                        "report_id": report_id,
-                        "label": label,
-                        "text": text
-                    }
-                )
+    for element, label, embedding in zip(data, labels, embeddings):
+        if isinstance(element, str) and len(element) == 0:
+            continue
+        points.append(
+            models.PointStruct(
+                id = uuid4(),
+                vector = embedding[:512],
+                payload = {
+                    "document_id": document_id,
+                    "report_id": report_id,
+                    "label": label,
+                    "data": element
+                }
             )
+        )
             
     return points
 
 async def process_pager_report(report: ReportJson, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
 
-    texts, labels = await run_in_threadpool(get_texts_and_labels, report)
+    data, labels = await run_in_threadpool(get_texts_and_labels, report)
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
+    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, data)
 
-    points = await run_in_threadpool(get_points, texts, labels, embeddings, document_id, report_id)
+    points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
     if len(points) > 0:
         await qdrant_client.upsert(
@@ -206,3 +225,89 @@ async def process_mineru_report(report: MinerUReport, document_id: int, report_i
         points=points,
         wait=True
     )
+
+
+BORDER_WIDTH = 1
+FILL_OPACITY = 0.15
+FONT_SIZE = 9
+
+def outline_pager_report(report: ReportJson, report_name: str, document_obj: id, document_type) -> bytes:
+
+    unique_labels = sorted({
+        region.label
+        for page in report.pages
+        for region in page.regions
+    })
+
+    generated_colors = generate_distinct_colors(len(unique_labels))
+
+    label_colors = {
+        label: generated_colors[i]
+        for i, label in enumerate(unique_labels)
+    }
+
+    document = pymupdf.open(stream=document_obj, filetype=document_type)
+
+    for page in report.pages:
+        page_number = page.number
+
+        if page_number >= len(document):
+            logging.info(f"Skipping page {page_number}: page not found in PDF, report {report_name}")
+            continue
+
+        document_page = document[page_number]
+
+        for region in page.regions:
+            segment = region.segment
+
+            x = segment.x_top_left
+            y = segment.y_top_left
+            w = segment.width
+            h = segment.height
+
+            label = region.label
+            color = label_colors[label]
+
+            rect = pymupdf.Rect(x, y, x + w, y + h)
+
+            document_page.draw_rect(
+                rect,
+                color=color,
+                fill=color,
+                fill_opacity=FILL_OPACITY,
+                width=BORDER_WIDTH
+            )
+
+            text_width = pymupdf.get_text_length(label, fontsize=FONT_SIZE)
+            text_height = FONT_SIZE
+            padding = 3
+
+            rect_x0 = x
+            rect_y0 = y - text_height - (padding * 2)
+            rect_x1 = rect_x0 + text_width + (padding * 2)
+            rect_y1 = y
+
+            rect = pymupdf.Rect(rect_x0, rect_y0, rect_x1, rect_y1)
+
+            document_page.draw_rect(
+                rect,
+                color=color,
+                fill=color,
+                fill_opacity=1,
+                width=1,
+            )
+
+            text_x = rect_x0 + padding
+            text_y = rect_y1 - padding - 1
+
+            document_page.insert_text(
+                (text_x, text_y),
+                label,
+                fontsize=FONT_SIZE,
+                color=(0, 0, 0),
+            )
+
+    updated_document_obj = document.tobytes(incremental=False)
+    document.close()
+
+    return updated_document_obj

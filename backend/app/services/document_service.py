@@ -19,7 +19,7 @@ from app.core.s3 import AWS_BUCKET
 from app.core.config import config
 from app.core.qdrant import collection_name
 from app.models.document_models import DocumentStatus
-from app.services.report_service import delete_reports, s3_upload_report
+from app.services.report_service import delete_reports, outline_pager_report, s3_upload_report, s3_upload_report_outline
 from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
 from app.models.report_models import ReportJson, PyMuPdfReportJson, PyMuPdfPage
 from app.models.mineru_models import MinerUReport
@@ -79,10 +79,13 @@ async def pager_process_document(document: Document, qdrant_client: AsyncQdrantC
     document.status = DocumentStatus.PROCESSING.value
     await run_in_threadpool(db.commit)
     try:
+
+        document_obj = await run_in_threadpool(s3_client.get_object(Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")["Body"].read)
+
         files = {
             "file": (
                 f"{document.s3_filename}.{document.s3_mime_type}",
-                await run_in_threadpool(s3_client.get_object(Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")["Body"].read),
+                document_obj,
                 f"application/{document.s3_mime_type}"
             )
         }
@@ -107,6 +110,12 @@ async def pager_process_document(document: Document, qdrant_client: AsyncQdrantC
         # but it is gonna be created and saved to s3
         logging.info(f"Processing report {report.s3_filename}.json")
         await process_pager_report(report_obj, document.id, report.id, qdrant_client)
+
+        logging.info(f"Creating report {report.s3_filename}.json representation")
+        updated_document_obj = await run_in_threadpool(outline_pager_report, report_obj, str(report_uuid), document_obj, document.s3_mime_type)
+
+        logging.info(f"Uploading report outline for {report.s3_filename}")
+        await run_in_threadpool(s3_upload_report_outline, updated_document_obj, str(report_uuid), document.s3_mime_type, s3_client, db)
 
         document.status = DocumentStatus.PROCESSED.value
         await run_in_threadpool(db.commit)
@@ -313,8 +322,6 @@ async def mineru_process_document(document: Document, qdrant_client: AsyncQdrant
 
 async def report_points_based_search(text: str, report_id: int, label: str | None, qdrant_client: AsyncQdrantClient) -> models.QueryResponse:
     logging.info(f"Searching documents with string {text}")
-
-    text = text.replace("-\n", "").replace("\n", " ").lower()
     
     embedding = await run_in_threadpool(ml_models["embedding_model"].encode, text)
 
@@ -347,9 +354,33 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
     result = await qdrant_client.query_points(
         collection_name=collection_name,
         query_filter=filter_condition,
-        query=embedding,
-        limit=10,
+        query=embedding[:512],
+        limit=50,
     )
+
+    # for index, element in enumerate(result.points):
+    #     print(f"{index}: {element}")
+    # print()
+
+    fragments = []
+    for item in result.points:
+        fragments.append(item.payload.get("data", ""))
+
+    rankings = ml_models["reranker_model"].rank(text, fragments)
+
+    # for index, element in enumerate(rankings):
+    #     print(f"{index}: {element}")
+    # print()
+
+    top_ranked = []
+    for item in rankings[:10]:
+        top_ranked.append(result.points[item.get("corpus_id")])
+
+    result.points = top_ranked
+
+    # for index, element in enumerate(result.points):
+    #     print(f"{index}: {element}")
+    # print()
 
     return result
 

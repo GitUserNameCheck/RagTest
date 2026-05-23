@@ -27,11 +27,11 @@ services:
       # QDRANT__TLS__CERT: "/path/to/your/cert.pem"
       # QDRANT__TLS__KEY: "/path/to/your/key.pem"
     volumes:
-      - qdrant-storage:/qdrant/storage
+      - qdrant-storage-last:/qdrant/storage
     networks:
       - service_network
   page_reader_modified:
-    image: latest_pager
+    image: pager_main
     container_name: page_reader
     ports:
       - "8000:8000"
@@ -68,4 +68,4 @@ networks:
   service_network:
 
 volumes:
-  qdrant-storage:
+  qdrant-storage-last:
