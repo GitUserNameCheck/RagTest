@@ -1,7 +1,9 @@
 from io import BytesIO
 import logging
+import random
 import pymupdf
-from typing import Any, List
+from typing import Any, Union
+from PIL.Image import Image as PILImage
 from fastapi.concurrency import run_in_threadpool
 from uuid import uuid4
 from sqlalchemy.orm import Session
@@ -16,7 +18,7 @@ from app.core.config import config
 from qdrant_client.http import models
 from app.models.report_models import ReportJson, PyMuPdfReportJson
 from app.models.mineru_models import AuxiliaryBlock, MinerUReport
-from app.utility.report_utility import generate_distinct_colors
+from app.utility.report_utility import base64_to_pil, generate_distinct_colors
 
 def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document: Document, s3_client: S3Client, db: Session) -> Report:
     logging.info(f"Creating report for document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -41,6 +43,7 @@ def s3_delete_reports(document: Document, s3_client: S3Client, db: Session) -> R
     for report in reports:
         logging.info(f"Deleting report {report.s3_filename} from s3 for document {report.document_id}")
         s3_client.delete_object(Bucket=AWS_BUCKET, Key=f"reports/{report.s3_filename}.json")
+        s3_client.delete_object(Bucket=AWS_BUCKET, Key=f"report_outlines/{report.s3_filename}.{document.s3_mime_type}")
         db.delete(report)
         db.commit()
 
@@ -63,8 +66,9 @@ async def qdrant_delete_reports_points(document: Document, qdrant_client: AsyncQ
         wait=True
     )
 
-def get_texts_and_labels(report: ReportJson) -> tuple[list[str], list[str]]:
+def get_texts_and_labels(report: ReportJson):
     data = []
+    embedding_data = []
     labels = []
     seen = set()
     
@@ -75,17 +79,23 @@ def get_texts_and_labels(report: ReportJson) -> tuple[list[str], list[str]]:
                     "text": region.text,
                     "image": f"data:image/png;base64,{region.base64}"
                 }
-                seen_key = (current_data["text"], current_data["image"])
+                current_embedding_data = {
+                    "text": region.text,
+                    "image": base64_to_pil(f"data:image/png;base64,{region.base64}")
+                }
+                seen_key = (region.text, region.base64)
             else:
                 current_data = region.text
+                current_embedding_data = region.text
                 seen_key = region.text
 
             if seen_key not in seen:
                 seen.add(seen_key)
                 data.append(current_data)
+                embedding_data.append(current_embedding_data)
                 labels.append(region.label)
 
-    return data, labels
+    return data, embedding_data, labels
 
 
 def get_points(data: list[Any], labels: list[str], embeddings: Tensor, document_id: int, report_id: int) -> list[models.PointStruct]:
@@ -111,9 +121,9 @@ def get_points(data: list[Any], labels: list[str], embeddings: Tensor, document_
 async def process_pager_report(report: ReportJson, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
 
-    data, labels = await run_in_threadpool(get_texts_and_labels, report)
+    data, embedding_data, labels = await run_in_threadpool(get_texts_and_labels, report)
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, data)
+    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
 
     points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
@@ -124,10 +134,10 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
             wait=True
         )
 
-def chunk_document(report: PyMuPdfReportJson) -> List[str]:
-    chunks = []
+def chunk_document(report: PyMuPdfReportJson):
+    data, embedding_data = [], []
     
-    full_text = " ".join([p.content for p in report.pages])
+    full_text = " ".join([p.text for p in report.pages])
     
     full_text = full_text.replace("-\n", "").replace("\n", " ")
 
@@ -142,26 +152,37 @@ def chunk_document(report: PyMuPdfReportJson) -> List[str]:
     while start < len(full_text):
         end = start + config.embedding_text_size
         chunk = full_text[start:end]
-        chunks.append(chunk)
+        data.append(chunk)
+        embedding_data.append(chunk)
         
-        # Сдвигаемся на размер чанка минус перекрытие
         start += (config.embedding_text_size - config.embedding_text_overlap)      
-            
-    return chunks
+
+    for page in report.pages:
+        for image in page.images:
+            data.append({"image": image})
+            embedding_data.append(base64_to_pil(image))
+
+    return data, embedding_data
 
 async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
-    texts = await run_in_threadpool(chunk_document, report)
+    data, embedding_data = await run_in_threadpool(chunk_document, report)
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
+    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
 
-    points = await run_in_threadpool(get_points, texts, [None] * len(texts), embeddings, document_id, report_id)
+    # embeddings = []
 
-    await qdrant_client.upsert(
-        collection_name=collection_name,
-        points=points,
-        wait=True
-    )
+    # for element in embedding_data:
+    #     embeddings.append(ml_models["embedding_model"].encode(element))
+
+    points = await run_in_threadpool(get_points, data, [None] * len(data), embeddings, document_id, report_id)
+
+    if len(points) > 0:
+        await qdrant_client.upsert(
+            collection_name=collection_name,
+            points=points,
+            wait=True
+        )
 
 def mineru_get_texts_and_labels(report: MinerUReport):
     blocks = report.content_list

@@ -201,14 +201,16 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
     for scored_point in result.points:
         data = scored_point.payload.get("data", "")
         if isinstance(data, dict):
-            content.append({"type": "text", "text": data.get("text", "")})
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    # Critical: Format as data:image/jpeg;base64,<data>
-                    "url": data.get("image", "")
-                },
-            },)
+            if "text" in data:
+                content.append({"type": "text", "text": data.get("text", "")})
+            if "image" in data:
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        # Critical: Format as data:image/jpeg;base64,<data>
+                        "url": data.get("image", "")
+                    },
+                },)
         else:
             content.append({"type": "text", "text": data})
 

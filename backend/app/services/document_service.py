@@ -1,9 +1,11 @@
-import json
+import base64
+import io
 import logging
 import re
 import pymupdf
-from pymupdf import Page
+from pymupdf import Page, Pixmap, Matrix, Document as PyMuPDFDoc
 from io import BytesIO
+from PIL import Image
 from uuid import uuid4
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
@@ -133,18 +135,61 @@ async def pager_process_document(document: Document, qdrant_client: AsyncQdrantC
         )
     
 
-def get_page_text(page: Page, document: Document):
+def get_page_text(page: Page):
     text = page.get_text(sort=True)
-    if not text:
-        logging.info(f"Document {document.id}, page {page.number + 1} is an image")
-        tp = page.get_textpage_ocr(language="eng")
-        text = page.get_text(textpage=tp, sort=True)
-
     text = re.sub(' +', ' ', text)
     lines = [line for line in text.splitlines() if line.strip()]
     cleaned_text = "\n".join(lines)
 
     return cleaned_text
+
+# def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]: 
+#     base64_images = []
+
+#     image_list = page.get_images(full=True) 
+
+#     for img in image_list: 
+#         xref = img[0] 
+
+#         base_image = pymupdf_doc.extract_image(xref) 
+
+#         image_bytes = base_image["image"] 
+#         image_ext = base_image["ext"] 
+
+#         base64_string = base64.b64encode(image_bytes).decode("utf-8") 
+#         data_uri = f"data:image/{image_ext};base64,{base64_string}" 
+        
+#         base64_images.append(data_uri) 
+    
+#     return base64_images
+
+def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]: 
+    base64_images = []
+    image_list = page.get_images(full=True) 
+
+    for img in image_list: 
+        xref = img[0] 
+        base_image = pymupdf_doc.extract_image(xref) 
+        
+        image_bytes = base_image["image"] 
+        image_ext = base_image["ext"] 
+
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        if image.width > 512 or image.height > 512:
+            image.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            
+            buffer = io.BytesIO()
+            save_ext = "JPEG" if image_ext.lower() in ["jpg", "jpeg"] else image_ext.upper()
+            image.save(buffer, format=save_ext)
+            image_bytes = buffer.getvalue()
+
+        base64_string = base64.b64encode(image_bytes).decode("utf-8") 
+        data_uri = f"data:image/{image_ext};base64,{base64_string}" 
+        
+        base64_images.append(data_uri) 
+    
+    return base64_images
 
 async def pymupdf_full_process_document(document: Document, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session):
     logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -161,8 +206,9 @@ async def pymupdf_full_process_document(document: Document, qdrant_client: Async
 
         pages_data  = []
         for  page in pymupdf_doc:
-            page_text = await run_in_threadpool(get_page_text, page, document)
-            pages_data.append(PyMuPdfPage(page_number=page.number + 1, content=page_text))
+            page_text = await run_in_threadpool(get_page_text, page)
+            page_images = await run_in_threadpool(get_page_images, page, pymupdf_doc)
+            pages_data.append(PyMuPdfPage(page_number=page.number + 1, text=page_text, images=page_images))
 
         pymupdf_doc.close()
 
@@ -231,7 +277,7 @@ async def pymupdf_partial_process_document(document: Document, start: int, end: 
         pages_data  = []
         for page in pymupdf_doc.pages(start=part_start, stop=part_end):
             page_text = await run_in_threadpool(get_page_text, page, document)
-            pages_data.append(PyMuPdfPage(page_number=page.number + 1, content=page_text))
+            pages_data.append(PyMuPdfPage(page_number=page.number + 1, text=page_text))
 
         report_data = PyMuPdfReportJson(
             document_name=document.s3_filename,

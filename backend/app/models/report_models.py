@@ -27,7 +27,8 @@ class ReportJson(BaseModel):
 
 class PyMuPdfPage(BaseModel):
     page_number: int
-    content: str
+    text: str
+    images: List[str]
 
 class PyMuPdfReportJson(BaseModel):
     document_name: str
