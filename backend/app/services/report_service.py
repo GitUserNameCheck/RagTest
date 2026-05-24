@@ -43,7 +43,8 @@ def s3_delete_reports(document: Document, s3_client: S3Client, db: Session) -> R
     for report in reports:
         logging.info(f"Deleting report {report.s3_filename} from s3 for document {report.document_id}")
         s3_client.delete_object(Bucket=AWS_BUCKET, Key=f"reports/{report.s3_filename}.json")
-        s3_client.delete_object(Bucket=AWS_BUCKET, Key=f"report_outlines/{report.s3_filename}.{document.s3_mime_type}")
+        if report.tag in ["mineru", "pager"]:
+            s3_client.delete_object(Bucket=AWS_BUCKET, Key=f"report_outlines/{report.s3_filename}.{document.s3_mime_type}")
         db.delete(report)
         db.commit()
 
@@ -75,15 +76,22 @@ def get_texts_and_labels(report: ReportJson):
     for page in report.pages:
         for region in page.regions:
             if region.label == "figure":
-                current_data = {
-                    "text": region.text,
-                    "image": f"data:image/png;base64,{region.base64}"
-                }
-                current_embedding_data = {
-                    "text": region.text,
-                    "image": base64_to_pil(f"data:image/png;base64,{region.base64}")
-                }
-                seen_key = (region.text, region.base64)
+                if region.text:
+                    current_data = {
+                        "text": region.text,
+                        "image": f"data:image/png;base64,{region.base64}"
+                    }
+                    current_embedding_data = {
+                        "text": region.text,
+                        "image": base64_to_pil(f"data:image/png;base64,{region.base64}")
+                    }
+                    seen_key = (region.text, region.base64)
+                else:
+                    current_data = {
+                        "image": f"data:image/png;base64,{region.base64}"
+                    }
+                    current_embedding_data = base64_to_pil(f"data:image/png;base64,{region.base64}")
+                    seen_key = region.base64
             else:
                 current_data = region.text
                 current_embedding_data = region.text

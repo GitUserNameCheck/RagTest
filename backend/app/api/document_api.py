@@ -219,7 +219,9 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
         {"role": "user", "content": content}
     ]
 
-    print(content)
+    for index, item in enumerate(content):
+        print(f"{index}: {item}")
+        print()
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,

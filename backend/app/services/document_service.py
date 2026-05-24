@@ -3,7 +3,7 @@ import io
 import logging
 import re
 import pymupdf
-from pymupdf import Page, Pixmap, Matrix, Document as PyMuPDFDoc
+from pymupdf import Page, Document as PyMuPDFDoc
 from io import BytesIO
 from PIL import Image
 from uuid import uuid4
@@ -25,6 +25,7 @@ from app.services.report_service import delete_reports, outline_pager_report, s3
 from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
 from app.models.report_models import ReportJson, PyMuPdfReportJson, PyMuPdfPage
 from app.models.mineru_models import MinerUReport
+from app.utility.report_utility import base64_to_pil
 
 PRESIGNED_URLS_EXPIRATION_TIME_SECONDS = 3600 # 1 hour
 
@@ -208,7 +209,7 @@ async def pymupdf_full_process_document(document: Document, qdrant_client: Async
         for  page in pymupdf_doc:
             page_text = await run_in_threadpool(get_page_text, page)
             page_images = await run_in_threadpool(get_page_images, page, pymupdf_doc)
-            pages_data.append(PyMuPdfPage(page_number=page.number + 1, text=page_text, images=page_images))
+            pages_data.append(PyMuPdfPage(page_number=page.number, text=page_text, images=page_images))
 
         pymupdf_doc.close()
 
@@ -404,13 +405,26 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
         limit=50,
     )
 
-    # for index, element in enumerate(result.points):
-    #     print(f"{index}: {element}")
-    # print()
+    for index, element in enumerate(result.points):
+        print(f"{index}: {element}")
+    print()
 
     fragments = []
     for item in result.points:
-        fragments.append(item.payload.get("data", ""))
+        data = item.payload.get("data", "")
+        if isinstance(data, dict):
+            if "image" not in data:
+                fragments.append(data.get("text", ""))
+                continue
+            if "text" not in data:
+                fragments.append(base64_to_pil(data.get("image", "")))
+                continue
+            fragments.append({
+                "text": data.get("text", ""),
+                "image": base64_to_pil(data.get("image", ""))
+            })
+        else:
+            fragments.append(data)
 
     rankings = ml_models["reranker_model"].rank(text, fragments)
 
