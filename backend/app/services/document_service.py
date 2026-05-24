@@ -21,7 +21,7 @@ from app.core.s3 import AWS_BUCKET
 from app.core.config import config
 from app.core.qdrant import collection_name
 from app.models.document_models import DocumentStatus
-from app.services.report_service import delete_reports, outline_pager_report, s3_upload_report, s3_upload_report_outline
+from app.services.report_service import delete_reports, outline_mineru_report, outline_pager_report, s3_upload_report, s3_upload_report_outline
 from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
 from app.models.report_models import ReportJson, PyMuPdfReportJson, PyMuPdfPage
 from app.models.mineru_models import MinerUReport
@@ -315,21 +315,26 @@ async def mineru_process_document(document: Document, qdrant_client: AsyncQdrant
     document.status = DocumentStatus.PROCESSING.value
     await run_in_threadpool(db.commit)
     try:
+        document_obj = await run_in_threadpool(s3_client.get_object(Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")["Body"].read)
+
         files = {
             "files": (
                 f"{document.name}.{document.s3_mime_type}",
-                await run_in_threadpool(s3_client.get_object(Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")["Body"].read),
+                document_obj,
                 f"application/{document.s3_mime_type}"
             )
         }
 
         data = {
-            "lang_list": ["cyrillic"],
+            "lang_list": ["en"],
             "backend": "pipeline",
             "formula_enable": False,
             "return_md": False,
             "return_content_list": True,
+            "return_images": True,
+            "return_model_output": True
         }
+
 
         logging.info(f"Sending documents {document.s3_filename}.{document.s3_mime_type} to mineru")
         
@@ -339,18 +344,24 @@ async def mineru_process_document(document: Document, qdrant_client: AsyncQdrant
         
         data = response.json()
         results = data["results"]
-        report_data = MinerUReport.model_validate(results[document.name])
+        report_obj = MinerUReport.model_validate(results[document.name])
         
         report_uuid = uuid4()
 
-        json_bytes = report_data.model_dump_json(indent=2).encode("utf-8")
+        json_bytes = report_obj.model_dump_json(indent=2).encode("utf-8")
 
         report = await run_in_threadpool(s3_upload_report, json_bytes, "mineru", str(report_uuid), document, s3_client, db)
 
         # report is not gonna be processed again if something fails, 
         # but it is gonna be created and saved to s3
         logging.info(f"Processing report {report.s3_filename}.json")
-        await process_mineru_report(report_data, document.id, report.id, qdrant_client)
+        await process_mineru_report(report_obj, document.id, report.id, qdrant_client)
+
+        logging.info(f"Creating report {report.s3_filename}.json representation")
+        updated_document_obj = await run_in_threadpool(outline_mineru_report, report_obj, str(report_uuid), document_obj, document.s3_mime_type)
+
+        logging.info(f"Uploading report outline for {report.s3_filename}")
+        await run_in_threadpool(s3_upload_report_outline, updated_document_obj, str(report_uuid), document.s3_mime_type, s3_client, db)
 
         document.status = DocumentStatus.PROCESSED.value
         await run_in_threadpool(db.commit)

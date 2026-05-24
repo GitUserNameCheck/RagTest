@@ -1,5 +1,7 @@
 from io import BytesIO
+import json
 import logging
+from pathlib import Path
 import random
 import pymupdf
 from typing import Any, Union
@@ -165,10 +167,14 @@ def chunk_document(report: PyMuPdfReportJson):
         
         start += (config.embedding_text_size - config.embedding_text_overlap)      
 
+    seen = set()
     for page in report.pages:
         for image in page.images:
-            data.append({"image": image})
-            embedding_data.append(base64_to_pil(image))
+            seen_key = image
+            if seen_key not in seen:
+                seen.add(seen_key)
+                data.append({"image": image})
+                embedding_data.append(base64_to_pil(image))
 
     return data, embedding_data
 
@@ -194,60 +200,182 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
 
 def mineru_get_texts_and_labels(report: MinerUReport):
     blocks = report.content_list
-    texts = []
+    images = report.images
+    data = []
+    embedding_data = []
     labels = []
 
+    seen = set()
     for block in blocks:
-        def join_existing(*parts):
-            valid_parts = []
-            for p in parts:
-                if isinstance(p, list):
-                    joined_list = "\n".join(filter(None, p))
-                    if joined_list: valid_parts.append(joined_list)
-                elif p:
-                    valid_parts.append(str(p))
-            return "\n".join(valid_parts)
+        def convert(list):
+            content_list = []
+            for item in list:
+                content_list.append({"type": "text", "text": item})
+            return content_list
 
-        content = ""
+        content = []
+        embedding_content = []
         
-        if block.type in ["text", "seal", "equation"] or isinstance(block, AuxiliaryBlock):
-            content = block.text
-            
+        if block.type == "text" or isinstance(block, AuxiliaryBlock):
+            if block.text:
+                content.append({"type": "text", "text": block.text})   
+                embedding_content.append({"type": "text", "text": block.text})
+
         elif block.type == "image":
-            content = join_existing(block.image_caption, block.image_footnote)
+            if block.image_caption:
+                image_caption = convert(block.image_caption)
+                content.extend(image_caption)
+                embedding_content.extend(image_caption)
+
+            path = Path(block.img_path)
+            image_base64 = images[path.name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_base64
+                },
+            })
+            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            
+            if block.image_footnote:
+                image_footnote = convert(block.image_footnote)
+                content.extend(image_footnote)
+                embedding_content.extend(image_footnote)
             
         elif block.type == "table":
-            content = join_existing(block.table_caption, block.table_body, block.table_footnote)
+            if block.table_caption:
+                table_caption = convert(block.table_caption)
+                content.extend(table_caption)
+                embedding_content.extend(table_caption)
             
+            path = Path(block.img_path)
+            image_base64 = images[path.name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_base64
+                },
+            })
+            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+
+            if block.table_body:
+                content.append({"type": "text", "text": block.table_body})   
+                embedding_content.append({"type": "text", "text": block.table_body})
+
+            if block.table_footnote:
+                table_footnote = convert(block.table_footnote)
+                content.extend(table_footnote)
+                content.extend(table_footnote)
+
+
         elif block.type == "chart":
-            content = join_existing(block.chart_caption, block.content, block.chart_footnote)
+            if block.chart_caption:
+                chart_caption = convert(block.chart_caption)
+                content.extend(chart_caption)
+                embedding_content.extend(chart_caption)
             
+            path = Path(block.img_path)
+            image_base64 = images[path.name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_base64
+                },
+            })
+            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+
+            if block.content:
+                content.append({"type": "text", "text": block.content})   
+                embedding_content.append({"type": "text", "text": block.content})
+
+            if block.chart_footnote:
+                chart_footnote = convert(block.chart_footnote)
+                content.extend(chart_footnote)
+                content.extend(chart_footnote)
+
+        elif block.type == "equation":
+            path = Path(block.img_path)
+            image_base64 = images[path.name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_base64
+                },
+            })
+            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+
+            if block.text:
+                content.append({"type": "text", "text": block.text})   
+                embedding_content.append({"type": "text", "text": block.text})
+
+
         elif block.type == "code":
-            content = join_existing(block.code_caption, block.code_body, block.code_footnote)
+            if block.code_caption:
+                code_caption = convert(block.code_caption)
+                content.extend(code_caption)
+                embedding_content.extend(code_caption)
             
+            if block.code_body:
+                content.append({"type": "text", "text": block.code_body})   
+                embedding_content.append({"type": "text", "text": block.code_body})
+
+            if block.code_footnote:
+                code_footnote = convert(block.code_footnote)
+                content.extend(code_footnote)
+                content.extend(code_footnote)
+
+
         elif block.type == "list":
-            content = "\n".join(filter(None, block.list_items))
+            if block.list_items:
+                list_items = convert(block.list_items)
+                content.extend(list_items)
+                embedding_content.extend(list_items) 
+
+        elif block.type == "seal":
+            path = Path(block.img_path)
+            image_base64 = images[path.name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": image_base64
+                },
+            })
+            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+
+            if block.text:
+                content.append({"type": "text", "text": block.text})   
+                embedding_content.append({"type": "text", "text": block.text})
 
         if content:
-            texts.append(content)
-            labels.append(block.type)
+            seen_key = json.dumps(content, sort_keys=True)
 
-    return texts, labels
+            if seen_key not in seen:
+                seen.add(seen_key)
+                data.append(content)
+                embedding_data.append([
+                    {
+                        "role": "user",
+                        "content": content
+                    },
+                ])
+                labels.append(block.type)
+
+    return data, embedding_data, labels
 
 
 
 async def process_mineru_report(report: MinerUReport, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
-    texts, labels = await run_in_threadpool(mineru_get_texts_and_labels, report)
+    data, embedding_data, labels = await run_in_threadpool(mineru_get_texts_and_labels, report)
 
     # result = "".join([f"\n\n{labels[i]}\nSTART\n{el}\nEND\n\n" for i, el in enumerate(texts)])
     # print(result)
 
     # print(len(texts), len(labels))
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, texts)
+    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
 
-    points = await run_in_threadpool(get_points, texts, labels, embeddings, document_id, report_id)
+    points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
     await qdrant_client.upsert(
         collection_name=collection_name,
@@ -335,6 +463,112 @@ def outline_pager_report(report: ReportJson, report_name: str, document_obj: id,
                 fontsize=FONT_SIZE,
                 color=(0, 0, 0),
             )
+
+    updated_document_obj = document.tobytes(incremental=False)
+    document.close()
+
+    return updated_document_obj
+
+def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: id, document_type) -> bytes:
+
+    pages_data = json.loads(report.model_output)
+
+    unique_labels = sorted({
+        item.get("label", "unknown")
+        for page in pages_data
+        for item in page.get("layout_dets", [])
+    })
+
+    generated_colors = generate_distinct_colors(len(unique_labels))
+
+    label_colors = {
+        label: generated_colors[i]
+        for i, label in enumerate(unique_labels)
+    }
+
+    document = pymupdf.open(stream=document_obj, filetype=document_type)
+
+    for page_data in pages_data:
+
+        page_info = page_data["page_info"]
+
+        page_number = page_info["page_no"]
+
+        if page_number >= len(document):
+            logging.info(f"Skipping page {page_number}: page not found in PDF, report {report_name}")
+            continue
+
+        page = document[page_number]
+
+        source_width = page_info["width"]
+        source_height = page_info["height"]
+
+        pdf_width = page.rect.width
+        pdf_height = page.rect.height
+
+        scale_x = pdf_width / source_width
+        scale_y = pdf_height / source_height
+
+        for item in page_data.get("layout_dets", []):
+
+            label = item.get("label")
+
+            if label == "ocr_text":
+                continue
+
+            bbox = item.get("bbox")
+
+            if not bbox or len(bbox) != 4:
+                continue
+
+            x0, y0, x1, y1 = bbox
+
+            x0 *= scale_x
+            x1 *= scale_x
+            y0 *= scale_y
+            y1 *= scale_y
+
+            rect = pymupdf.Rect(x0, y0, x1, y1)
+
+            color = label_colors[label]
+
+            page.draw_rect(
+                rect,
+                color=color,
+                fill=color,
+                fill_opacity=FILL_OPACITY,
+                width=BORDER_WIDTH
+            )
+
+            text_width = pymupdf.get_text_length(label, fontsize=FONT_SIZE)
+            text_height = FONT_SIZE
+            padding = 3
+
+            rect_x0 = x0
+            rect_y0 = y0 - text_height - (padding * 2)
+            rect_x1 = rect_x0 + text_width + (padding * 2)
+            rect_y1 = y0
+
+            rect = pymupdf.Rect(rect_x0, rect_y0, rect_x1, rect_y1)
+
+            page.draw_rect(
+                rect,
+                color=color,
+                fill=color,
+                fill_opacity=1,
+                width=1,
+            )
+
+            text_x = rect_x0 + padding
+            text_y = rect_y1 - padding - 1
+
+            page.insert_text(
+                (text_x, text_y),
+                label,
+                fontsize=FONT_SIZE,
+                color=(0, 0, 0),  # Pure black text for perfect readability
+            )
+
 
     updated_document_obj = document.tobytes(incremental=False)
     document.close()

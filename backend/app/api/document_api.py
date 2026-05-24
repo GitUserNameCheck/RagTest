@@ -210,8 +210,10 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
                         # Critical: Format as data:image/jpeg;base64,<data>
                         "url": data.get("image", "")
                     },
-                },)
-        else:
+                })
+        elif isinstance(data, list):
+            content.extend(data)
+        else: 
             content.append({"type": "text", "text": data})
 
     messages = [

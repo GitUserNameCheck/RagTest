@@ -77,6 +77,8 @@ Block = Annotated[
 
 class MinerUReport(BaseModel):
     content_list: List[Block]
+    images: dict[str, str]
+    model_output: str
 
     @field_validator("content_list", mode="before")
     @classmethod

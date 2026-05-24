@@ -38,8 +38,8 @@ async def lifespan(app: FastAPI):
     
 
     ml_models["magika"] = Magika()
-    ml_models["embedding_model"] = SentenceTransformer(config.embedding_model_path)
-    ml_models["reranker_model"] = CrossEncoder(config.reranker_model_path)
+    ml_models["embedding_model"] = SentenceTransformer(config.embedding_model_path, processor_kwargs={"max_pixels": 512 * 512})
+    ml_models["reranker_model"] = CrossEncoder(config.reranker_model_path, processor_kwargs={"max_pixels": 512 * 512})
 
     if cuda.is_available():
         ml_models["embedding_model"] = ml_models["embedding_model"].to('cuda')
