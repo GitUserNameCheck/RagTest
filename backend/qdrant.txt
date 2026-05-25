@@ -44,3 +44,10 @@ POST collections/DocumentEmbedding/points/search
     ]
   }
 }
+
+POST collections/DocumentEmbedding/points
+{
+  "ids": ["9ee17515-2a56-4762-8413-75e3576256e2"],
+  "with_payload": true,
+  "with_vector": false
+}

@@ -23,7 +23,7 @@ from app.core.qdrant import collection_name
 from app.models.document_models import DocumentStatus
 from app.services.report_service import delete_reports, outline_mineru_report, outline_pager_report, s3_upload_report, s3_upload_report_outline
 from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
-from app.models.report_models import ReportJson, PyMuPdfReportJson, PyMuPdfPage
+from app.models.report_models import PyMuPdfPartialPage, PyMuPdfPartialReportJson, ReportJson, PyMuPdfReportJson, PyMuPdfPage
 from app.models.mineru_models import MinerUReport
 from app.utility.report_utility import base64_to_pil
 
@@ -261,7 +261,7 @@ def get_pages_start_end(document: Document, start: int, end: int, total_pages: i
     logging.info(f"result is [{img_start}, {img_end}]")
     return img_start, img_end
 
-async def pymupdf_partial_process_document(document: Document, start: int, end: int, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session):
+async def pymupdf_partial_process_document(document: Document, start: int, end: int, s3_client: S3Client, db: Session):
     logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
     document.status = DocumentStatus.PROCESSING.value
     await run_in_threadpool(db.commit)
@@ -277,10 +277,12 @@ async def pymupdf_partial_process_document(document: Document, start: int, end: 
 
         pages_data  = []
         for page in pymupdf_doc.pages(start=part_start, stop=part_end):
-            page_text = await run_in_threadpool(get_page_text, page, document)
-            pages_data.append(PyMuPdfPage(page_number=page.number + 1, text=page_text))
+            pix = page.get_pixmap()
+            image_bytes = pix.tobytes("png")
+            page_data = f"data:image/png;base64,{base64.b64encode(image_bytes).decode("utf-8")}"
+            pages_data.append(PyMuPdfPartialPage(page_number=page.number, image=page_data))
 
-        report_data = PyMuPdfReportJson(
+        report_data = PyMuPdfPartialReportJson(
             document_name=document.s3_filename,
             total_pages=pymupdf_doc.page_count,
             pages=pages_data
@@ -482,9 +484,7 @@ async def report_based_search(report: Report, s3_client: S3Client) -> str:
 
     file_content = await run_in_threadpool(file["Body"].read)
 
-    report_obj = PyMuPdfReportJson.model_validate_json(file_content)
+    report_obj = PyMuPdfPartialReportJson.model_validate_json(file_content)
 
-    full_text = "\n".join([p.content for p in report_obj.pages])
-
-    return full_text
+    return report_obj
 

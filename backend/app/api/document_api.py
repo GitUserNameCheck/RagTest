@@ -19,6 +19,7 @@ from app.services.document_service import mineru_process_document as service_min
 from app.services.report_service import delete_reports
 from app.db.schema import DbSession, Document, Report
 from app.models.document_models import DocumentStatus
+from app.models.report_models import PyMuPdfPartialReportJson
 
 router = APIRouter(
     prefix="/document"
@@ -151,7 +152,7 @@ async def pymupdf_full_process_document(id: int,  qdrant_client: QdrantClient, s
 
 
 @router.post("/pymupdf_partial_process")
-async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdrant_client: QdrantClient, s3_client: S3Client,  db: DbSession):
+async def pymupdf_partial_process_document(id: int, start: int, end: int, s3_client: S3Client,  db: DbSession):
     document = await run_in_threadpool(lambda: db.query(Document).filter(Document.id == id).first())
     if document is None:
         raise HTTPException(
@@ -164,7 +165,7 @@ async def pymupdf_partial_process_document(id: int, start: int, end: int,  qdran
     #         detail="Document is already being processed"
     #     )
 
-    report_id = await service_pymupdf_partial_process_document(document, start, end, qdrant_client, s3_client, db)
+    report_id = await service_pymupdf_partial_process_document(document, start, end, s3_client, db)
 
     return {"message": "document successfuly processed", "id": report_id}
 
@@ -245,14 +246,26 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
             detail="Report does not exist"
         )
     
-    result = await service_report_based_search(report, s3_client)
+    result: PyMuPdfPartialReportJson = await service_report_based_search(report, s3_client)
 
-    messages = [
-        {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt + "\n" + search_text + "\n\n" + result}
+    content = [ 
+        {"type": "text", "text": search_text},
     ]
 
-    print(prompt + "\n" + search_text + "\n" + result)
+    for page in result.pages:
+        content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": page.image
+            },
+        })
+
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": content}
+    ]
+
+    print(content)
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
