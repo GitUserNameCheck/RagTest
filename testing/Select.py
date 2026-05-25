@@ -97,8 +97,8 @@ def filter_json(
 
     filtered_data = [item for item in data if should_include(item)]
 
-    print("check")
-    print(*(item.get("question_id") for item in data if not should_include(item)), sep="\n")
+    # print("check")
+    # print(*(item.get("question_id") for item in data if not should_include(item)), sep="\n")
 
     with open(output_jsonl_path, "w", encoding="utf-8") as f:
         for item in filtered_data:

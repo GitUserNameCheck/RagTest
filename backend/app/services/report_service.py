@@ -249,15 +249,16 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(image_caption)
                 embedding_content.extend(image_caption)
 
-            path = Path(block.img_path)
-            image_base64 = images[path.name]
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": image_base64
-                },
-            })
-            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            if block.img_path:
+                path = Path(block.img_path)
+                image_base64 = images[path.name]
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
+                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
             
             if block.image_footnote:
                 image_footnote = convert(block.image_footnote)
@@ -270,15 +271,16 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(table_caption)
                 embedding_content.extend(table_caption)
             
-            path = Path(block.img_path)
-            image_base64 = images[path.name]
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": image_base64
-                },
-            })
-            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            if block.img_path:
+                path = Path(block.img_path)
+                image_base64 = images[path.name]
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
+                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.table_body:
                 content.append({"type": "text", "text": block.table_body})   
@@ -296,15 +298,16 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(chart_caption)
                 embedding_content.extend(chart_caption)
             
-            path = Path(block.img_path)
-            image_base64 = images[path.name]
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": image_base64
-                },
-            })
-            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            if block.img_path:
+                path = Path(block.img_path)
+                image_base64 = images[path.name]
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
+                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.content:
                 content.append({"type": "text", "text": block.content})   
@@ -316,15 +319,16 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(chart_footnote)
 
         elif block.type == "equation":
-            path = Path(block.img_path)
-            image_base64 = images[path.name]
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": image_base64
-                },
-            })
-            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            if block.img_path:
+                path = Path(block.img_path)
+                image_base64 = images[path.name]
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
+                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
@@ -354,15 +358,16 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 embedding_content.extend(list_items) 
 
         elif block.type == "seal":
-            path = Path(block.img_path)
-            image_base64 = images[path.name]
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": image_base64
-                },
-            })
-            embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
+            if block.img_path:
+                path = Path(block.img_path)
+                image_base64 = images[path.name]
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
+                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
