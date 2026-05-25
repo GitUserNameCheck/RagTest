@@ -1,3 +1,5 @@
+import asyncio
+import gc
 from io import BytesIO
 import json
 import logging
@@ -10,6 +12,7 @@ from fastapi.concurrency import run_in_threadpool
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from torch import Tensor
+import torch
 from app.core.ml_models import ml_models
 from types_boto3_s3.client import S3Client
 from qdrant_client import AsyncQdrantClient
@@ -133,7 +136,17 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
 
     data, embedding_data, labels = await run_in_threadpool(get_texts_and_labels, report)
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
+    with torch.no_grad():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
+
+    # embeddings = []
+
+    # for element in embedding_data:
+    #     print(element)
+    #     await asyncio.sleep(5) 
+    #     with torch.inference_mode():
+    #         data = ml_models["embedding_model"].encode(element, batch_size=1)
+    #     embeddings.append(data)
 
     points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
@@ -143,6 +156,10 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
             points=points,
             wait=True
         )
+
+    del embeddings
+    gc.collect()
+    torch.cuda.empty_cache()
 
 def chunk_document(report: PyMuPdfReportJson):
     data, embedding_data = [], []
@@ -182,7 +199,8 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
 
     data, embedding_data = await run_in_threadpool(chunk_document, report)
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
+    with torch.no_grad():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
 
     # embeddings = []
 
@@ -197,6 +215,10 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
             points=points,
             wait=True
         )
+
+    del embeddings
+    gc.collect()
+    torch.cuda.empty_cache()
 
 def mineru_get_texts_and_labels(report: MinerUReport):
     blocks = report.content_list
@@ -373,7 +395,8 @@ async def process_mineru_report(report: MinerUReport, document_id: int, report_i
 
     # print(len(texts), len(labels))
 
-    embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data)
+    with torch.no_grad():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
 
     points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
@@ -383,9 +406,11 @@ async def process_mineru_report(report: MinerUReport, document_id: int, report_i
         wait=True
     )
 
+    del embeddings
+    gc.collect()
+    torch.cuda.empty_cache()
 
-BORDER_WIDTH = 1
-FILL_OPACITY = 0.15
+
 FONT_SIZE = 9
 
 def outline_pager_report(report: ReportJson, report_name: str, document_obj: id, document_type) -> bytes:
@@ -414,6 +439,8 @@ def outline_pager_report(report: ReportJson, report_name: str, document_obj: id,
 
         document_page = document[page_number]
 
+        shape = document_page.new_shape()
+
         for region in page.regions:
             segment = region.segment
 
@@ -427,12 +454,13 @@ def outline_pager_report(report: ReportJson, report_name: str, document_obj: id,
 
             rect = pymupdf.Rect(x, y, x + w, y + h)
 
-            document_page.draw_rect(
-                rect,
+            shape.draw_rect(rect)
+
+            shape.finish(
                 color=color,
                 fill=color,
-                fill_opacity=FILL_OPACITY,
-                width=BORDER_WIDTH
+                fill_opacity=0.15,
+                width=1,
             )
 
             text_width = pymupdf.get_text_length(label, fontsize=FONT_SIZE)
@@ -446,23 +474,26 @@ def outline_pager_report(report: ReportJson, report_name: str, document_obj: id,
 
             rect = pymupdf.Rect(rect_x0, rect_y0, rect_x1, rect_y1)
 
-            document_page.draw_rect(
-                rect,
+            shape.draw_rect(rect)
+
+            shape.finish(
                 color=color,
                 fill=color,
-                fill_opacity=1,
+                fill_opacity=1.0,
                 width=1,
             )
 
             text_x = rect_x0 + padding
             text_y = rect_y1 - padding - 1
 
-            document_page.insert_text(
+            shape.insert_text(
                 (text_x, text_y),
                 label,
                 fontsize=FONT_SIZE,
                 color=(0, 0, 0),
             )
+
+        shape.commit(overlay=False)
 
     updated_document_obj = document.tobytes(incremental=False)
     document.close()
@@ -509,6 +540,8 @@ def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: 
         scale_x = pdf_width / source_width
         scale_y = pdf_height / source_height
 
+        shape = page.new_shape()
+
         for item in page_data.get("layout_dets", []):
 
             label = item.get("label")
@@ -530,14 +563,15 @@ def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: 
 
             rect = pymupdf.Rect(x0, y0, x1, y1)
 
+            shape.draw_rect(rect)
+
             color = label_colors[label]
 
-            page.draw_rect(
-                rect,
+            shape.finish(
                 color=color,
                 fill=color,
-                fill_opacity=FILL_OPACITY,
-                width=BORDER_WIDTH
+                fill_opacity=0.15,
+                width=1,
             )
 
             text_width = pymupdf.get_text_length(label, fontsize=FONT_SIZE)
@@ -551,8 +585,9 @@ def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: 
 
             rect = pymupdf.Rect(rect_x0, rect_y0, rect_x1, rect_y1)
 
-            page.draw_rect(
-                rect,
+            shape.draw_rect(rect)
+
+            shape.finish(
                 color=color,
                 fill=color,
                 fill_opacity=1,
@@ -562,13 +597,14 @@ def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: 
             text_x = rect_x0 + padding
             text_y = rect_y1 - padding - 1
 
-            page.insert_text(
+            shape.insert_text(
                 (text_x, text_y),
                 label,
                 fontsize=FONT_SIZE,
-                color=(0, 0, 0),  # Pure black text for perfect readability
+                color=(0, 0, 0),
             )
 
+        shape.commit(overlay=False)
 
     updated_document_obj = document.tobytes(incremental=False)
     document.close()

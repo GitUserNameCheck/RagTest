@@ -4,12 +4,6 @@ This repository provides a framework for evaluating and comparing different retr
 
 The primary goal is to analyze how different document parsing and retrieval methods impact the quality of LLM responses on documents.
 
-## Tested Dataset Overview
-
-Dataset was created by selecting all Understanding and Locating questions with evidence elements being Text and Layout.
-
-![Dataset](evaluation/images/Dataset.jpg)
-
 ## Tested Strategies
 
 - Questioning without any retrieved data.
@@ -37,6 +31,7 @@ Dataset was created by selecting all Understanding and Locating questions with e
 - MinerU: v3.0.4.
 - Tesseract OCR: v5.5.0.20241111 (System dependency).
 - Python: 3.13.7.
-- Full Python dependency list can be found in requirements.txt.
-- Embeddings Model: [distiluse-base-multilingual-cased-v1](https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v1).
-- Model used for questioning is [Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf](https://huggingface.co/lmstudio-community/Qwen2.5-VL-7B-Instruct-GGUF) hosted in LM Studio.
+- Full Python dependency list can be found in requirements.txt and mineru_requirements.txt.
+- Embedding Model: [Qwen3-VL-Embedding-2B](https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B).
+- Reranker Model: [Qwen3-VL-Reranker-2B](https://huggingface.co/Qwen/Qwen3-VL-Reranker-2B).
+- Model used for questioning is [Qwen3.5-9B-Q6_K.gguf](https://huggingface.co/lmstudio-community/Qwen3.5-9B-GGUF/tree/main) hosted in LM Studio.

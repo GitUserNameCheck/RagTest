@@ -22,10 +22,6 @@ def generate_distinct_colors(n):
 
 def base64_to_pil(base64_str: str) -> Image.Image:
     
-    # missing_padding = len(base64_str) % 4
-    # if missing_padding:
-    #     base64_str += '=' * (4 - missing_padding)
-
     if "," in base64_str:
         base64_str = base64_str.split(",", 1)[1]
 

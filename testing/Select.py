@@ -44,7 +44,7 @@ TASK_TAXONOMY = {
 SELECTED_TASK_TAGS = {
     "Understanding",
     "Locating",
-    # "Reasoning",
+    "Reasoning",
 }
 
 SELECTED_SUBTASKS = {
@@ -55,8 +55,9 @@ SELECTED_SUBTASKS = {
 SELECTED_EVIDENCE_SOURCES = {
     "Layout",
     "Text",
-    # "Figure",
-    # "Table",
+    "Figure",
+    "Table",
+    "Others"
 }
 
 
@@ -95,6 +96,9 @@ def filter_json(
                 raise ValueError(f"Invalid JSON on line {line_num}") from e
 
     filtered_data = [item for item in data if should_include(item)]
+
+    print("check")
+    print(*(item.get("question_id") for item in data if not should_include(item)), sep="\n")
 
     with open(output_jsonl_path, "w", encoding="utf-8") as f:
         for item in filtered_data:
