@@ -416,9 +416,9 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
         limit=50,
     )
 
-    for index, element in enumerate(result.points):
-        print(f"{index}: {element}")
-    print()
+    # for index, element in enumerate(result.points):
+    #     print(f"{index}: {element}")
+    # print()
 
     fragments = []
     for item in result.points:
@@ -434,10 +434,28 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
                 "text": data.get("text", ""),
                 "image": base64_to_pil(data.get("image", ""))
             })
+        if isinstance(data, list):
+            intermediate_form = {}
+            for index, element in enumerate(data):
+                if "image_url" in element:
+                    base64_image = element["image_url"]["url"]
+                    intermediate_form["image"] = base64_image
+                if "text" in element:
+                    if "text" not in intermediate_form:
+                        intermediate_form["text"] = []
+                    intermediate_form["text"].append(element["text"])
+            fragments.append(intermediate_form)
+
         else:
             fragments.append(data)
 
-    rankings = ml_models["reranker_model"].rank(text, fragments)
+    # for index, element in enumerate(fragments):
+    #     print(f"{index}: {element}")
+    # print()
+
+    query = text
+
+    rankings = ml_models["reranker_model"].rank(query, fragments)
 
     # for index, element in enumerate(rankings):
     #     print(f"{index}: {element}")
@@ -449,9 +467,9 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
 
     result.points = top_ranked
 
-    # for index, element in enumerate(result.points):
-    #     print(f"{index}: {element}")
-    # print()
+    for index, element in enumerate(result.points):
+        print(f"{index}: {element.id}")
+    print()
 
     return result
 

@@ -221,9 +221,9 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
         {"role": "user", "content": content}
     ]
 
-    for index, item in enumerate(content):
-        print(f"{index}: {item}")
-        print()
+    # for index, item in enumerate(content):
+    #     print(f"{index}: {item}")
+    #     print()
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
@@ -267,11 +267,11 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
 
 
 @router.get("/pure_llm_search")
-async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIClient,):
+async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIClient):
 
     messages = [
-        {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-        {"role": "user", "content": prompt + "\n" + search_text}
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": search_text}
     ]
 
     print(prompt + "\n" + search_text)
