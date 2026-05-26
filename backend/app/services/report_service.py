@@ -9,6 +9,7 @@ import pymupdf
 from typing import Any, Union
 from PIL.Image import Image as PILImage
 from fastapi.concurrency import run_in_threadpool
+from markdownify import markdownify as md
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from torch import Tensor
@@ -23,7 +24,7 @@ from app.core.config import config
 from qdrant_client.http import models
 from app.models.report_models import ReportJson, PyMuPdfReportJson
 from app.models.mineru_models import AuxiliaryBlock, MinerUReport
-from app.utility.report_utility import base64_to_pil, generate_distinct_colors
+from app.utility.report_utility import base64_to_pil, generate_distinct_colors, get_aspect_ratio_from_base64
 
 def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document: Document, s3_client: S3Client, db: Session) -> Report:
     logging.info(f"Creating report for document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -81,21 +82,25 @@ def get_texts_and_labels(report: ReportJson):
     for page in report.pages:
         for region in page.regions:
             if region.label == "figure":
+                base64_image = f"data:image/png;base64,{region.base64}"
+                if get_aspect_ratio_from_base64(base64_image) >= 200:
+                    continue
+
                 if region.text:
                     current_data = {
                         "text": region.text,
-                        "image": f"data:image/png;base64,{region.base64}"
+                        "image": base64_image
                     }
                     current_embedding_data = {
                         "text": region.text,
-                        "image": base64_to_pil(f"data:image/png;base64,{region.base64}")
+                        "image": base64_to_pil(base64_image)
                     }
                     seen_key = (region.text, region.base64)
                 else:
                     current_data = {
-                        "image": f"data:image/png;base64,{region.base64}"
+                        "image": base64_image
                     }
-                    current_embedding_data = base64_to_pil(f"data:image/png;base64,{region.base64}")
+                    current_embedding_data = base64_to_pil(base64_image)
                     seen_key = region.base64
             else:
                 current_data = region.text
@@ -283,8 +288,9 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.table_body:
-                content.append({"type": "text", "text": block.table_body})   
-                embedding_content.append({"type": "text", "text": block.table_body})
+                md_body = md(block.table_body)
+                content.append({"type": "text", "text": md_body})
+                embedding_content.append({"type": "text", "text": md_body})
 
             if block.table_footnote:
                 table_footnote = convert(block.table_footnote)

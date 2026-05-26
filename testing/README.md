@@ -33,7 +33,6 @@ This repository contains files to test using [LongDocUrl](https://github.com/den
 
 ## Pure LLM process and question
 
-1. [Select.py](Select.py)
 1. [Question.py](pure_llm/Question.py)
 
 ## After processing and questioning

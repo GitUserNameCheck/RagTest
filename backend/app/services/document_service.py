@@ -5,7 +5,7 @@ import re
 import pymupdf
 from pymupdf import Page, Document as PyMuPDFDoc
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageFile
 from uuid import uuid4
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
@@ -25,7 +25,7 @@ from app.services.report_service import delete_reports, outline_mineru_report, o
 from app.services.report_service import process_pager_report, process_pymupdf_full_report, process_mineru_report
 from app.models.report_models import PyMuPdfPartialPage, PyMuPdfPartialReportJson, ReportJson, PyMuPdfReportJson, PyMuPdfPage
 from app.models.mineru_models import MinerUReport
-from app.utility.report_utility import base64_to_pil
+from app.utility.report_utility import base64_to_pil, safe_open_image
 
 PRESIGNED_URLS_EXPIRATION_TIME_SECONDS = 3600 # 1 hour
 
@@ -164,6 +164,8 @@ def get_page_text(page: Page):
     
 #     return base64_images
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]: 
     base64_images = []
     image_list = page.get_images(full=True) 
@@ -173,20 +175,32 @@ def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]:
         base_image = pymupdf_doc.extract_image(xref) 
         
         image_bytes = base_image["image"] 
-        image_ext = base_image["ext"] 
 
-        image = Image.open(io.BytesIO(image_bytes))
+        image = safe_open_image(image_bytes)
+
+        if image is None:
+            continue
+
+        if image.mode != "RGB":
+            image = image.convert("RGB")
         
-        if image.width > 512 or image.height > 512:
+        width, height = image.size
+
+        # Skip extreme aspect ratios
+        aspect_ratio = max(width / height, height / width)
+        if aspect_ratio >= 200:
+            continue
+
+        if width > 512 or height > 512:
             image.thumbnail((512, 512), Image.Resampling.LANCZOS)
             
-            buffer = io.BytesIO()
-            save_ext = "JPEG" if image_ext.lower() in ["jpg", "jpeg"] else image_ext.upper()
-            image.save(buffer, format=save_ext)
-            image_bytes = buffer.getvalue()
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        
+        image_bytes = buffer.getvalue()
 
         base64_string = base64.b64encode(image_bytes).decode("utf-8") 
-        data_uri = f"data:image/{image_ext};base64,{base64_string}" 
+        data_uri = f"data:image/jpeg;base64,{base64_string}" 
         
         base64_images.append(data_uri) 
     
