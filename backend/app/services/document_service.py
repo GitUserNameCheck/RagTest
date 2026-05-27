@@ -1,4 +1,5 @@
 import base64
+import gc
 import io
 import logging
 import re
@@ -9,7 +10,9 @@ from PIL import Image, ImageFile
 from uuid import uuid4
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
+from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import Session
+import torch
 from types_boto3_s3.client import S3Client
 from qdrant_client import AsyncQdrantClient
 import httpx
@@ -396,8 +399,6 @@ async def mineru_process_document(document: Document, qdrant_client: AsyncQdrant
 
 async def report_points_based_search(text: str, report_id: int, label: str | None, qdrant_client: AsyncQdrantClient) -> models.QueryResponse:
     logging.info(f"Searching documents with string {text}")
-    
-    embedding = await run_in_threadpool(ml_models["embedding_model"].encode, text)
 
     conditions = []
     
@@ -424,6 +425,9 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
     filter_condition = models.Filter(
         must=conditions
     )
+
+    with torch.inference_mode():
+        embedding = await run_in_threadpool(ml_models["embedding_model"].encode, text)
 
     result = await qdrant_client.query_points(
         collection_name=collection_name,
@@ -471,7 +475,8 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
 
     query = text
 
-    rankings = ml_models["reranker_model"].rank(query, fragments)
+    with torch.inference_mode():
+        rankings = ml_models["reranker_model"].rank(query, fragments, batch_size=1)
 
     # for index, element in enumerate(rankings):
     #     print(f"{index}: {element}")
@@ -481,11 +486,15 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
     for item in rankings[:10]:
         top_ranked.append(result.points[item.get("corpus_id")])
 
+    del rankings
+    gc.collect()
+    torch.cuda.empty_cache()
+
     result.points = top_ranked
 
-    for index, element in enumerate(result.points):
-        print(f"{index}: {element.id}")
-    print()
+    # for index, element in enumerate(result.points):
+    #     print(f"{index}: {element.id}")
+    # print()
 
     return result
 

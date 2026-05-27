@@ -141,8 +141,8 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
 
     data, embedding_data, labels = await run_in_threadpool(get_texts_and_labels, report)
 
-    with torch.no_grad():
-        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
+    with torch.inference_mode():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
 
     # embeddings = []
 
@@ -204,8 +204,8 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
 
     data, embedding_data = await run_in_threadpool(chunk_document, report)
 
-    with torch.no_grad():
-        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
+    with torch.inference_mode():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
 
     # embeddings = []
 
@@ -406,8 +406,8 @@ async def process_mineru_report(report: MinerUReport, document_id: int, report_i
 
     # print(len(texts), len(labels))
 
-    with torch.no_grad():
-        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=4)
+    with torch.inference_mode():
+        embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
 
     points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
