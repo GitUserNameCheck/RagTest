@@ -13,8 +13,12 @@ def calculate_jsonl_metrics(file_path):
     trans = {
         "Layout": "Разметка", 
         "Text": "Текст",
+        "Figure": "Изображение",
+        "Table": "Таблица",
+        "Others": "Другое",
         "Understanding": "Понимание", 
-        "Locating": "Обнаружение"
+        "Locating": "Обнаружение",
+        "Reasoning": "Рассуждение"
     }
 
     with open(file_path, 'r', encoding='utf-8') as f:

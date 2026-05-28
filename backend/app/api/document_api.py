@@ -265,7 +265,7 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
         {"role": "user", "content": content}
     ]
 
-    print(content)
+    # print(content)
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,

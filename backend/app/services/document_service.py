@@ -437,7 +437,7 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
     )
 
     # for index, element in enumerate(result.points):
-    #     print(f"{index}: {element}")
+    #     print(f"{index}: {element.id}")
     # print()
 
     fragments = []
@@ -446,26 +446,24 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
         if isinstance(data, dict):
             if "image" not in data:
                 fragments.append(data.get("text", ""))
-                continue
-            if "text" not in data:
+            elif "text" not in data:
                 fragments.append(base64_to_pil(data.get("image", "")))
-                continue
-            fragments.append({
-                "text": data.get("text", ""),
-                "image": base64_to_pil(data.get("image", ""))
-            })
-        if isinstance(data, list):
+            else:
+                fragments.append({
+                    "text": data.get("text", ""),
+                    "image": base64_to_pil(data.get("image", ""))
+                })
+        elif isinstance(data, list):
             intermediate_form = {}
             for index, element in enumerate(data):
                 if "image_url" in element:
                     base64_image = element["image_url"]["url"]
-                    intermediate_form["image"] = base64_image
+                    intermediate_form["image"] = base64_to_pil(base64_image)
                 if "text" in element:
                     if "text" not in intermediate_form:
                         intermediate_form["text"] = []
                     intermediate_form["text"].append(element["text"])
             fragments.append(intermediate_form)
-
         else:
             fragments.append(data)
 
