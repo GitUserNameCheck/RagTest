@@ -287,7 +287,7 @@ async def pure_llm_search(prompt: str, search_text: str, open_ai_client: OpenAIC
         {"role": "user", "content": search_text}
     ]
 
-    print(prompt + "\n" + search_text)
+    # print(prompt + "\n" + search_text)
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,

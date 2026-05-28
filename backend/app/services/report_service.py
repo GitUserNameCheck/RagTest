@@ -388,7 +388,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 embedding_data.append([
                     {
                         "role": "user",
-                        "content": content
+                        "content": embedding_content
                     },
                 ])
                 labels.append(block.type)
