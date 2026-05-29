@@ -504,7 +504,7 @@ def outline_pager_report(report: ReportJson, report_name: str, document_obj: id,
                 color=(0, 0, 0),
             )
 
-        shape.commit(overlay=False)
+        shape.commit(overlay=True)
 
     updated_document_obj = document.tobytes(incremental=False)
     document.close()
@@ -615,7 +615,7 @@ def outline_mineru_report(report: MinerUReport, report_name: str, document_obj: 
                 color=(0, 0, 0),
             )
 
-        shape.commit(overlay=False)
+        shape.commit(overlay=True)
 
     updated_document_obj = document.tobytes(incremental=False)
     document.close()
