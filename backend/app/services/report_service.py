@@ -24,7 +24,7 @@ from app.core.config import config
 from qdrant_client.http import models
 from app.models.report_models import ReportJson, PyMuPdfReportJson
 from app.models.mineru_models import AuxiliaryBlock, MinerUReport
-from app.utility.report_utility import base64_to_pil, generate_distinct_colors, get_aspect_ratio_from_base64
+from app.utility.report_utility import generate_distinct_colors, get_aspect_ratio_from_base64
 
 def s3_upload_report(content: bytes, report_tag: str, s3_filename: str, document: Document, s3_client: S3Client, db: Session) -> Report:
     logging.info(f"Creating report for document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -81,36 +81,31 @@ def get_texts_and_labels(report: ReportJson):
     
     for page in report.pages:
         for region in page.regions:
+            content = []
             if region.label == "figure":
-                base64_image = f"data:image/png;base64,{region.base64}"
-                if get_aspect_ratio_from_base64(base64_image) >= 200:
+                image_base64 = f"data:image/png;base64,{region.base64}"
+                if get_aspect_ratio_from_base64(image_base64) >= 200:
                     continue
-
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_base64
+                    },
+                })
                 if region.text:
-                    current_data = {
-                        "text": region.text,
-                        "image": base64_image
-                    }
-                    current_embedding_data = {
-                        "text": region.text,
-                        "image": base64_to_pil(base64_image)
-                    }
-                    seen_key = (region.text, region.base64)
-                else:
-                    current_data = {
-                        "image": base64_image
-                    }
-                    current_embedding_data = base64_to_pil(base64_image)
-                    seen_key = region.base64
+                    content.append({"type": "text", "text": region.text})
             else:
-                current_data = region.text
-                current_embedding_data = region.text
-                seen_key = region.text
+                content.append({"type": "text", "text": region.text})
+        
+            seen_key = json.dumps(content, sort_keys=True)
 
             if seen_key not in seen:
                 seen.add(seen_key)
-                data.append(current_data)
-                embedding_data.append(current_embedding_data)
+                data.append(content)
+                embedding_data.append({
+                    "role": "user",
+                    "content": content
+                })
                 labels.append(region.label)
 
     return data, embedding_data, labels
@@ -144,15 +139,6 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
     with torch.inference_mode():
         embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
 
-    # embeddings = []
-
-    # for element in embedding_data:
-    #     print(element)
-    #     await asyncio.sleep(5) 
-    #     with torch.inference_mode():
-    #         data = ml_models["embedding_model"].encode(element, batch_size=1)
-    #     embeddings.append(data)
-
     points = await run_in_threadpool(get_points, data, labels, embeddings, document_id, report_id)
 
     if len(points) > 0:
@@ -184,8 +170,14 @@ def chunk_document(report: PyMuPdfReportJson):
     while start < len(full_text):
         end = start + config.embedding_text_size
         chunk = full_text[start:end]
-        data.append(chunk)
-        embedding_data.append(chunk)
+        content = [
+            {"type": "text", "text": chunk}
+        ]
+        data.append(content)
+        embedding_data.append({
+            "role": "user",
+            "content": content
+        })
         
         start += (config.embedding_text_size - config.embedding_text_overlap)      
 
@@ -195,8 +187,19 @@ def chunk_document(report: PyMuPdfReportJson):
             seen_key = image
             if seen_key not in seen:
                 seen.add(seen_key)
-                data.append({"image": image})
-                embedding_data.append(base64_to_pil(image))
+                content = [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image
+                        },
+                    }
+                ]
+                data.append(content)
+                embedding_data.append({
+                    "role": "user",
+                    "content": content
+                })
 
     return data, embedding_data
 
@@ -368,7 +371,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                     {
                         "role": "user",
                         "content": content
-                    },
+                    }
                 )
                 labels.append(block.type)
 
