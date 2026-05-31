@@ -241,18 +241,15 @@ def mineru_get_texts_and_labels(report: MinerUReport):
             return content_list
 
         content = []
-        embedding_content = []
         
         if block.type == "text" or isinstance(block, AuxiliaryBlock):
             if block.text:
                 content.append({"type": "text", "text": block.text})   
-                embedding_content.append({"type": "text", "text": block.text})
 
         elif block.type == "image":
             if block.image_caption:
                 image_caption = convert(block.image_caption)
                 content.extend(image_caption)
-                embedding_content.extend(image_caption)
 
             if block.img_path:
                 path = Path(block.img_path)
@@ -263,18 +260,15 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                         "url": image_base64
                     },
                 })
-                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
             
             if block.image_footnote:
                 image_footnote = convert(block.image_footnote)
                 content.extend(image_footnote)
-                embedding_content.extend(image_footnote)
             
         elif block.type == "table":
             if block.table_caption:
                 table_caption = convert(block.table_caption)
                 content.extend(table_caption)
-                embedding_content.extend(table_caption)
             
             if block.img_path:
                 path = Path(block.img_path)
@@ -285,16 +279,13 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                         "url": image_base64
                     },
                 })
-                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.table_body:
                 md_body = md(block.table_body)
                 content.append({"type": "text", "text": md_body})
-                embedding_content.append({"type": "text", "text": md_body})
 
             if block.table_footnote:
                 table_footnote = convert(block.table_footnote)
-                content.extend(table_footnote)
                 content.extend(table_footnote)
 
 
@@ -302,7 +293,6 @@ def mineru_get_texts_and_labels(report: MinerUReport):
             if block.chart_caption:
                 chart_caption = convert(block.chart_caption)
                 content.extend(chart_caption)
-                embedding_content.extend(chart_caption)
             
             if block.img_path:
                 path = Path(block.img_path)
@@ -313,15 +303,12 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                         "url": image_base64
                     },
                 })
-                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.content:
                 content.append({"type": "text", "text": block.content})   
-                embedding_content.append({"type": "text", "text": block.content})
 
             if block.chart_footnote:
                 chart_footnote = convert(block.chart_footnote)
-                content.extend(chart_footnote)
                 content.extend(chart_footnote)
 
         elif block.type == "equation":
@@ -334,26 +321,21 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                         "url": image_base64
                     },
                 })
-                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
-                embedding_content.append({"type": "text", "text": block.text})
 
 
         elif block.type == "code":
             if block.code_caption:
                 code_caption = convert(block.code_caption)
                 content.extend(code_caption)
-                embedding_content.extend(code_caption)
             
             if block.code_body:
                 content.append({"type": "text", "text": block.code_body})   
-                embedding_content.append({"type": "text", "text": block.code_body})
 
             if block.code_footnote:
                 code_footnote = convert(block.code_footnote)
-                content.extend(code_footnote)
                 content.extend(code_footnote)
 
 
@@ -361,7 +343,6 @@ def mineru_get_texts_and_labels(report: MinerUReport):
             if block.list_items:
                 list_items = convert(block.list_items)
                 content.extend(list_items)
-                embedding_content.extend(list_items) 
 
         elif block.type == "seal":
             if block.img_path:
@@ -373,11 +354,9 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                         "url": image_base64
                     },
                 })
-                embedding_content.append({"type": "image", "image": base64_to_pil(image_base64)})
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
-                embedding_content.append({"type": "text", "text": block.text})
 
         if content:
             seen_key = json.dumps(content, sort_keys=True)
@@ -385,12 +364,12 @@ def mineru_get_texts_and_labels(report: MinerUReport):
             if seen_key not in seen:
                 seen.add(seen_key)
                 data.append(content)
-                embedding_data.append([
+                embedding_data.append(
                     {
                         "role": "user",
-                        "content": embedding_content
+                        "content": content
                     },
-                ])
+                )
                 labels.append(block.type)
 
     return data, embedding_data, labels

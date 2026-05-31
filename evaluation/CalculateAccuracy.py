@@ -65,9 +65,14 @@ def calculate_jsonl_metrics(file_path):
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFFull.jsonl"
 # PATH = "C:/Users/howto/Downloads/test/ScoredPyMuPDFPartial.jsonl"
 
-# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+
+
+
 # PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pure_llm/ScoredPureLLM.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
 # PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_full/ScoredPyMuPDFFull.jsonl"
-PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pymupdf_partial/ScoredPyMuPDFPartial.jsonl"
+# PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/mineru/ScoredMineru.jsonl"
+PATH = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/pager/ScoredPager.jsonl"
+
 
 calculate_jsonl_metrics(PATH)
