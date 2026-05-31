@@ -95,7 +95,10 @@ def get_texts_and_labels(report: ReportJson):
                 if region.text:
                     content.append({"type": "text", "text": region.text})
             else:
-                content.append({"type": "text", "text": region.text})
+                if len(region.text) >= 20:
+                    content.append({"type": "text", "text": region.text})
+                else:
+                    continue
         
             seen_key = json.dumps(content, sort_keys=True)
 
@@ -246,7 +249,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
         content = []
         
         if block.type == "text" or isinstance(block, AuxiliaryBlock):
-            if block.text:
+            if block.text and len(block.text) >= 20:
                 content.append({"type": "text", "text": block.text})   
 
         elif block.type == "image":
