@@ -9,9 +9,8 @@ from app.core.ml_models import ml_models
 from app.core.s3 import S3Client
 from app.core.qdrant import QdrantClient
 from app.core.openai import OpenAIClient
-from app.services.document_service import s3_get_documents, s3_upload_document, s3_delete_document
-from app.services.document_service import report_based_search as service_report_based_search
-from app.services.document_service import report_points_based_search as service_report_points_based_search
+from app.services.document_service import report_search, s3_get_documents, s3_upload_document, s3_delete_document
+from app.services.document_service import service_points_search
 from app.services.document_service import pager_process_document as service_pager_process_document
 from app.services.document_service import pymupdf_full_process_document as service_pymupdf_full_process_document 
 from app.services.document_service import pymupdf_partial_process_document as service_pymupdf_partial_process_document
@@ -193,7 +192,7 @@ async def mineru_process_document(id: int, qdrant_client: QdrantClient, s3_clien
 @router.get("/report_points_based_search")
 async def report_points_based_search(prompt: str, search_text: str, report_id: int, qdrant_client: QdrantClient, open_ai_client: OpenAIClient, label: str | None = None):
 
-    result = await service_report_points_based_search(search_text, report_id, label, qdrant_client)
+    result = await service_points_search(search_text, report_id, label, qdrant_client)
 
     content = [ 
         {"type": "text", "text": search_text},
@@ -201,30 +200,12 @@ async def report_points_based_search(prompt: str, search_text: str, report_id: i
 
     for scored_point in result.points:
         data = scored_point.payload.get("data", "")
-        if isinstance(data, dict):
-            if "text" in data:
-                content.append({"type": "text", "text": data.get("text", "")})
-            if "image" in data:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        # Critical: Format as data:image/jpeg;base64,<data>
-                        "url": data.get("image", "")
-                    },
-                })
-        elif isinstance(data, list):
-            content.extend(data)
-        else: 
-            content.append({"type": "text", "text": data})
+        content.extend(data)
 
     messages = [
         {"role": "system", "content": prompt},
         {"role": "user", "content": content}
     ]
-
-    # for index, item in enumerate(content):
-    #     print(f"{index}: {item}")
-    #     print()
 
     response = await open_ai_client.chat.completions.create(
         model=config.open_ai_model_name,
@@ -246,7 +227,7 @@ async def report_based_search(prompt: str, search_text: str, report_id: int, s3_
             detail="Report does not exist"
         )
     
-    result: PyMuPdfPartialReportJson = await service_report_based_search(report, s3_client)
+    result: PyMuPdfPartialReportJson = await report_search(report, s3_client)
 
     content = [ 
         {"type": "text", "text": search_text},

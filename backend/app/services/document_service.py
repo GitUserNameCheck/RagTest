@@ -147,26 +147,6 @@ def get_page_text(page: Page):
 
     return cleaned_text
 
-# def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]: 
-#     base64_images = []
-
-#     image_list = page.get_images(full=True) 
-
-#     for img in image_list: 
-#         xref = img[0] 
-
-#         base_image = pymupdf_doc.extract_image(xref) 
-
-#         image_bytes = base_image["image"] 
-#         image_ext = base_image["ext"] 
-
-#         base64_string = base64.b64encode(image_bytes).decode("utf-8") 
-#         data_uri = f"data:image/{image_ext};base64,{base64_string}" 
-        
-#         base64_images.append(data_uri) 
-    
-#     return base64_images
-
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def get_page_images(page: Page, pymupdf_doc: PyMuPDFDoc) -> list[str]: 
@@ -259,75 +239,6 @@ async def pymupdf_full_process_document(document: Document, qdrant_client: Async
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Document processing failed"
         )
-    
-
-def get_pages_start_end(document: Document, start: int, end: int, total_pages: int, num_of_images_input: int = 30):
-    # All page ids mentioned are based on the order in the raw document.
-    # context_start_end: page start/end id of context in qa generation
-    # num_of_images_input: the number of input images, 30 images in cut-off paradigm
-    # total_pages: total pages in the raw document
-    # img_start, img_end: input page start/end id
-    raw_start_page, raw_end_page = start, end
-    raw_pages_len = raw_end_page - raw_start_page
-    img_start = max(0, raw_start_page - (num_of_images_input - raw_pages_len)//2)
-    img_end = img_start + num_of_images_input
-    if img_end >= total_pages:
-        img_end = total_pages
-        img_start = max(0, img_end - num_of_images_input)
-    logging.info(f"Document {document.id}: start  {start}, end {end}, page number {total_pages}")
-    logging.info(f"result is [{img_start}, {img_end}]")
-    return img_start, img_end
-
-async def pymupdf_partial_process_document(document: Document, start: int, end: int, s3_client: S3Client, db: Session):
-    logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
-    document.status = DocumentStatus.PROCESSING.value
-    await run_in_threadpool(db.commit)
-    try:
-
-        file = await run_in_threadpool(s3_client.get_object, Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")
-
-        file_content = await run_in_threadpool(file["Body"].read)
-
-        pymupdf_doc = pymupdf.open(stream=file_content, filetype=document.s3_mime_type)
-
-        part_start, part_end = get_pages_start_end(document, start, end, pymupdf_doc.page_count)
-
-        pages_data  = []
-        for page in pymupdf_doc.pages(start=part_start, stop=part_end):
-            pix = page.get_pixmap()
-            image_bytes = pix.tobytes("png")
-            page_data = f"data:image/png;base64,{base64.b64encode(image_bytes).decode("utf-8")}"
-            pages_data.append(PyMuPdfPartialPage(page_number=page.number, image=page_data))
-
-        report_data = PyMuPdfPartialReportJson(
-            document_name=document.s3_filename,
-            total_pages=pymupdf_doc.page_count,
-            pages=pages_data
-        )
-
-        pymupdf_doc.close()
-
-        json_bytes = report_data.model_dump_json(indent=2).encode("utf-8")
-
-        report_uuid = uuid4()
-        
-        report = await run_in_threadpool(s3_upload_report, json_bytes, "pymupdf_partial", str(report_uuid), document, s3_client, db)
-
-        document.status = DocumentStatus.PROCESSED.value
-        await run_in_threadpool(db.commit)
-
-        return report.id
-
-    except Exception as e:
-        await run_in_threadpool(db.rollback)
-        logging.exception(f"Error while processing document {document.s3_filename}.{document.s3_mime_type} from s3 \n {e}")
-        document.status = DocumentStatus.PROCESSING_FAILED.value
-        await run_in_threadpool(db.commit)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Document processing failed"
-        )
-
 
 async def mineru_process_document(document: Document, qdrant_client: AsyncQdrantClient, s3_client: S3Client, db: Session):
     logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
@@ -397,7 +308,7 @@ async def mineru_process_document(document: Document, qdrant_client: AsyncQdrant
             detail="Document processing failed"
         )
 
-async def report_points_based_search(text: str, report_id: int, label: str | None, qdrant_client: AsyncQdrantClient) -> models.QueryResponse:
+async def service_points_search(text: str, report_id: int, label: str | None, qdrant_client: AsyncQdrantClient) -> models.QueryResponse:
     logging.info(f"Searching documents with string {text}")
 
     conditions = []
@@ -481,8 +392,74 @@ async def report_points_based_search(text: str, report_id: int, label: str | Non
 
     return result
 
+def get_pages_start_end(document: Document, start: int, end: int, total_pages: int, num_of_images_input: int = 30):
+    # All page ids mentioned are based on the order in the raw document.
+    # context_start_end: page start/end id of context in qa generation
+    # num_of_images_input: the number of input images, 30 images in cut-off paradigm
+    # total_pages: total pages in the raw document
+    # img_start, img_end: input page start/end id
+    raw_start_page, raw_end_page = start, end
+    raw_pages_len = raw_end_page - raw_start_page
+    img_start = max(0, raw_start_page - (num_of_images_input - raw_pages_len)//2)
+    img_end = img_start + num_of_images_input
+    if img_end >= total_pages:
+        img_end = total_pages
+        img_start = max(0, img_end - num_of_images_input)
+    logging.info(f"Document {document.id}: start  {start}, end {end}, page number {total_pages}")
+    logging.info(f"result is [{img_start}, {img_end}]")
+    return img_start, img_end
 
-async def report_based_search(report: Report, s3_client: S3Client) -> str:
+async def pymupdf_partial_process_document(document: Document, start: int, end: int, s3_client: S3Client, db: Session):
+    logging.info(f"Processing document {document.s3_filename}.{document.s3_mime_type} from s3")
+    document.status = DocumentStatus.PROCESSING.value
+    await run_in_threadpool(db.commit)
+    try:
+
+        file = await run_in_threadpool(s3_client.get_object, Bucket=AWS_BUCKET, Key=f"documents/{document.s3_filename}.{document.s3_mime_type}")
+
+        file_content = await run_in_threadpool(file["Body"].read)
+
+        pymupdf_doc = pymupdf.open(stream=file_content, filetype=document.s3_mime_type)
+
+        part_start, part_end = get_pages_start_end(document, start, end, pymupdf_doc.page_count)
+
+        pages_data  = []
+        for page in pymupdf_doc.pages(start=part_start, stop=part_end):
+            pix = page.get_pixmap()
+            image_bytes = pix.tobytes("png")
+            page_data = f"data:image/png;base64,{base64.b64encode(image_bytes).decode("utf-8")}"
+            pages_data.append(PyMuPdfPartialPage(page_number=page.number, image=page_data))
+
+        report_data = PyMuPdfPartialReportJson(
+            document_name=document.s3_filename,
+            total_pages=pymupdf_doc.page_count,
+            pages=pages_data
+        )
+
+        pymupdf_doc.close()
+
+        json_bytes = report_data.model_dump_json(indent=2).encode("utf-8")
+
+        report_uuid = uuid4()
+        
+        report = await run_in_threadpool(s3_upload_report, json_bytes, "pymupdf_partial", str(report_uuid), document, s3_client, db)
+
+        document.status = DocumentStatus.PROCESSED.value
+        await run_in_threadpool(db.commit)
+
+        return report.id
+
+    except Exception as e:
+        await run_in_threadpool(db.rollback)
+        logging.exception(f"Error while processing document {document.s3_filename}.{document.s3_mime_type} from s3 \n {e}")
+        document.status = DocumentStatus.PROCESSING_FAILED.value
+        await run_in_threadpool(db.commit)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document processing failed"
+        )
+
+async def report_search(report: Report, s3_client: S3Client) -> str:
     logging.info(f"Assembling text for report {report.id}")
 
     # text = text.replace("-\n", "").replace("\n", " ").lower()

@@ -18,10 +18,6 @@ OPENAI_URL = "http://localhost:1234/v1"
 OPENAI_MODEL_NAME = "qwen/qwen3.5-9b"
 ANSWER_EXTRACTION_PROMPT = "C:/Users/howto/Downloads/SemanticSearch/RagTestProject/testing/AnswerExtractionPrompt.md"
 
-SYSTEM_PROMPT = (
-    "You are an expert in document question answering. Answer the question strictly based on the given document. \n"
-)
-
 
 def load_jsonl(path):
     items = []
@@ -65,8 +61,7 @@ def main():
         predicted_answer = row.get("predicted_answer")
 
         messages = [
-            {"role": "system", "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."},
-            {"role": "user", "content": SYSTEM_PROMPT + extraction_prompt + "\nQuestion: " + question + "\nAnalysis: " + predicted_answer}
+            {"role": "user", "content": extraction_prompt + "\nQuestion: " + question + "\nAnalysis: " + predicted_answer}
         ]
 
         print("Extracting answer for question " + question_id)

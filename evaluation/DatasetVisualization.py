@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 trans = {
     "Layout": "Разметка",
     "Text": "Текст",
-    "Figure": "Изображение",
+    "Figure": "Рисунок",
     "Table": "Таблица",
     "Others": "Другое",
     "Understanding": "Понимание",
@@ -19,7 +19,7 @@ trans = {
 }
 
 def make_combined_plot(task_tag_counts, evidence_counts):
-    fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+    fig, axes = plt.subplots(2, 1, figsize=(7, 10))
 
     fig.subplots_adjust(wspace=0.3)
     # ==================================================
@@ -43,7 +43,7 @@ def make_combined_plot(task_tag_counts, evidence_counts):
         labeldistance=1.15,
         radius=0.8,
         wedgeprops=dict(width=0.42),
-        textprops=dict(fontsize=12)
+        textprops=dict(fontsize=14)
     )
 
     for t in autotexts:
@@ -61,7 +61,7 @@ def make_combined_plot(task_tag_counts, evidence_counts):
         fontweight="bold"
     )
 
-    ax.set_title("Категория вопроса", fontsize=20)
+    ax.set_title("Категория вопроса", fontsize=18)
 
     ax.set_box_aspect(0.8)
 
@@ -72,10 +72,11 @@ def make_combined_plot(task_tag_counts, evidence_counts):
 
     labels = [tr(x) for x in evidence_counts.index]
 
+    colors = plt.cm.tab10(range(len(labels)))
 
-    bars = ax.bar(labels, evidence_counts.values, width=0.5)
+    bars = ax.bar(labels, evidence_counts.values, width=0.5, color=colors)
 
-    ax.set_xticklabels(labels, fontsize=12)
+    ax.set_xticklabels(labels, fontsize=14)
 
     for bar in bars:
         height = bar.get_height()
@@ -85,14 +86,14 @@ def make_combined_plot(task_tag_counts, evidence_counts):
             f"{int(height)}",
             ha="center",
             va="bottom",
-            fontsize=12,
+            fontsize=14,
             fontweight="bold"
         )
 
-    ax.set_title("Элементы с ответом", fontsize=20)
+    ax.set_title("Элементы-доказательства", fontsize=18)
     ax.set_ylabel("Количество", fontsize=15)
 
-    ax.set_box_aspect(0.8)
+    ax.set_box_aspect(0.6)
 
 
     fig.savefig("C:/Users/howto/Downloads/SemanticSearch/RagTestProject/evaluation/Dataset.png")
@@ -207,7 +208,6 @@ def main():
     # --------------------------------------------------
     evidence_types = [
         "Table",
-        "Others",
         "Text",
         "Layout",
         "Figure"

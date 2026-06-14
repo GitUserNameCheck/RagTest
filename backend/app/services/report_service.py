@@ -73,7 +73,7 @@ async def qdrant_delete_reports_points(document: Document, qdrant_client: AsyncQ
         wait=True
     )
 
-def get_texts_and_labels(report: ReportJson):
+def pager_get_data(report: ReportJson):
     data = []
     embedding_data = []
     labels = []
@@ -95,10 +95,7 @@ def get_texts_and_labels(report: ReportJson):
                 if region.text:
                     content.append({"type": "text", "text": region.text})
             else:
-                if len(region.text) >= 20:
-                    content.append({"type": "text", "text": region.text})
-                else:
-                    continue
+                content.append({"type": "text", "text": region.text})
         
             seen_key = json.dumps(content, sort_keys=True)
 
@@ -136,8 +133,7 @@ def get_points(data: list[Any], labels: list[str], embeddings: Tensor, document_
 
 async def process_pager_report(report: ReportJson, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
-
-    data, embedding_data, labels = await run_in_threadpool(get_texts_and_labels, report)
+    data, embedding_data, labels = await run_in_threadpool(pager_get_data, report)
 
     with torch.inference_mode():
         embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
@@ -155,7 +151,7 @@ async def process_pager_report(report: ReportJson, document_id: int, report_id: 
     gc.collect()
     torch.cuda.empty_cache()
 
-def chunk_document(report: PyMuPdfReportJson):
+def pymupdf_get_data(report: PyMuPdfReportJson):
     data, embedding_data = [], []
     
     full_text = " ".join([p.text for p in report.pages])
@@ -208,7 +204,7 @@ def chunk_document(report: PyMuPdfReportJson):
 
 async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
-    data, embedding_data = await run_in_threadpool(chunk_document, report)
+    data, embedding_data = await run_in_threadpool(pymupdf_get_data, report)
 
     with torch.inference_mode():
         embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
@@ -231,7 +227,7 @@ async def process_pymupdf_full_report(report: PyMuPdfReportJson, document_id: in
     gc.collect()
     torch.cuda.empty_cache()
 
-def mineru_get_texts_and_labels(report: MinerUReport):
+def mineru_get_data(report: MinerUReport):
     blocks = report.content_list
     images = report.images
     data = []
@@ -245,11 +241,21 @@ def mineru_get_texts_and_labels(report: MinerUReport):
             for item in list:
                 content_list.append({"type": "text", "text": item})
             return content_list
+        def append_image(path, images, content):
+            name = Path(path).name
+            base64 = images[name]
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": base64
+                },
+            })
+
 
         content = []
         
         if block.type == "text" or isinstance(block, AuxiliaryBlock):
-            if block.text and len(block.text) >= 20:
+            if block.text:
                 content.append({"type": "text", "text": block.text})   
 
         elif block.type == "image":
@@ -258,14 +264,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(image_caption)
 
             if block.img_path:
-                path = Path(block.img_path)
-                image_base64 = images[path.name]
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_base64
-                    },
-                })
+                append_image(block.img_path, images, content)
             
             if block.image_footnote:
                 image_footnote = convert(block.image_footnote)
@@ -277,14 +276,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(table_caption)
             
             if block.img_path:
-                path = Path(block.img_path)
-                image_base64 = images[path.name]
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_base64
-                    },
-                })
+                append_image(block.img_path, images, content)
 
             if block.table_body:
                 md_body = md(block.table_body)
@@ -301,14 +293,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
                 content.extend(chart_caption)
             
             if block.img_path:
-                path = Path(block.img_path)
-                image_base64 = images[path.name]
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_base64
-                    },
-                })
+                append_image(block.img_path, images, content)
 
             if block.content:
                 content.append({"type": "text", "text": block.content})   
@@ -319,14 +304,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
 
         elif block.type == "equation":
             if block.img_path:
-                path = Path(block.img_path)
-                image_base64 = images[path.name]
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_base64
-                    },
-                })
+                append_image(block.img_path, images, content)
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
@@ -352,14 +330,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
 
         elif block.type == "seal":
             if block.img_path:
-                path = Path(block.img_path)
-                image_base64 = images[path.name]
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": image_base64
-                    },
-                })
+                append_image(block.img_path, images, content)
 
             if block.text:
                 content.append({"type": "text", "text": block.text})   
@@ -384,12 +355,7 @@ def mineru_get_texts_and_labels(report: MinerUReport):
 
 async def process_mineru_report(report: MinerUReport, document_id: int, report_id: int, qdrant_client: QdrantClient) -> None:
 
-    data, embedding_data, labels = await run_in_threadpool(mineru_get_texts_and_labels, report)
-
-    # result = "".join([f"\n\n{labels[i]}\nSTART\n{el}\nEND\n\n" for i, el in enumerate(texts)])
-    # print(result)
-
-    # print(len(texts), len(labels))
+    data, embedding_data, labels = await run_in_threadpool(mineru_get_data, report)
 
     with torch.inference_mode():
         embeddings = await run_in_threadpool(ml_models["embedding_model"].encode, embedding_data, batch_size=1)
